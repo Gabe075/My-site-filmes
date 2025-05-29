@@ -1,5 +1,7 @@
-const apiKey = 'db8dd955b2614807b1bc6b0bf4e3d090'; // Substitua por sua chave da API do TMDb
-const baseUrl = 'https://api.themoviedb.org/3';
+const tmdbApiKey = 'db8dd955b2614807b1bc6b0bf4e3d090'; // Substitua pela sua chave da TMDb
+const youtubeApiKey = 'AIzaSyAGtURPjB_Joo9WD7BU6_PvKbHXqKqubqM'; // Substitua pela sua chave da YouTube Data API
+const tmdbBaseUrl = 'https://api.themoviedb.org/3';
+const youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
 const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
 // Elementos do DOM
@@ -12,10 +14,10 @@ const closeModal = document.querySelector('.close-modal');
 const hamburger = document.querySelector('.hamburger');
 const sidebar = document.querySelector('.sidebar');
 
-// Carregar gêneros
+// Carregar gêneros da TMDb
 async function loadGenres() {
     try {
-        const response = await fetch(`${baseUrl}/genre/movie/list?api_key=${apiKey}&language=pt-BR`);
+        const response = await fetch(`${tmdbBaseUrl}/genre/movie/list?api_key=${tmdbApiKey}&language=pt-BR`);
         const data = await response.json();
         data.genres.forEach(genre => {
             const option = document.createElement('option');
@@ -28,41 +30,60 @@ async function loadGenres() {
     }
 }
 
-// Carregar filmes populares
+// Buscar vídeo correspondente no YouTube
+async function findYouTubeVideo(title) {
+    try {
+        const response = await fetch(`${youtubeBaseUrl}/search?part=snippet&q=${encodeURIComponent(title + ' filme completo dublado')}&type=video&videoCaption=any&videoDuration=long&key=${youtubeApiKey}&maxResults=1`);
+        const data = await response.json();
+        return data.items[0]?.id.videoId || null;
+    } catch (error) {
+        console.error('Erro ao buscar vídeo no YouTube:', error);
+        return null;
+    }
+}
+
+// Carregar filmes
 async function loadMovies(genreId = '', query = '') {
     movieList.innerHTML = '<p>Carregando...</p>';
     try {
-        let url = `${baseUrl}/movie/popular?api_key=${apiKey}&language=pt-BR`;
+        let tmdbUrl = `${tmdbBaseUrl}/movie/popular?api_key=${tmdbApiKey}&language=pt-BR`;
         if (query) {
-            url = `${baseUrl}/search/movie?api_key=${apiKey}&language=pt-BR&query=${encodeURIComponent(query)}`;
+            tmdbUrl = `${tmdbBaseUrl}/search/movie?api_key=${tmdbApiKey}&language=pt-BR&query=${encodeURIComponent(query)}`;
         } else if (genreId) {
-            url = `${baseUrl}/discover/movie?api_key=${apiKey}&language=pt-BR&with_genres=${genreId}`;
+            tmdbUrl = `${tmdbBaseUrl}/discover/movie?api_key=${tmdbApiKey}&language=pt-BR&with_genres=${genreId}`;
         }
-        const response = await fetch(url);
+        const response = await fetch(tmdbUrl);
         const data = await response.json();
         movieList.innerHTML = '';
-        data.results.forEach(movie => {
+        if (data.results.length === 0) {
+            movieList.innerHTML = '<p>Nenhum filme encontrado.</p>';
+            return;
+        }
+        for (const movie of data.results) {
+            const videoId = await findYouTubeVideo(movie.title);
             const movieCard = document.createElement('div');
             movieCard.className = 'movie-card';
             movieCard.innerHTML = `
                 <img src="${movie.poster_path ? imageBaseUrl + movie.poster_path : 'placeholder.jpg'}" alt="${movie.title}">
                 <h2>${movie.title}</h2>
                 <p>${movie.overview.slice(0, 100)}...</p>
+                ${videoId ? `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>` : '<p>Filme não disponível para streaming.</p>'}
             `;
-            movieCard.addEventListener('click', () => showMovieDetails(movie.id));
+            movieCard.addEventListener('click', () => showMovieDetails(movie.id, movie.title));
             movieList.appendChild(movieCard);
-        });
+        }
     } catch (error) {
         console.error('Erro ao carregar filmes:', error);
         movieList.innerHTML = '<p>Erro ao carregar filmes.</p>';
     }
 }
 
-// Mostrar detalhes do filme em um modal
-async function showMovieDetails(movieId) {
+// Mostrar detalhes do filme no modal
+async function showMovieDetails(movieId, title) {
     try {
-        const response = await fetch(`${baseUrl}/movie/${movieId}?api_key=${apiKey}&language=pt-BR`);
+        const response = await fetch(`${tmdbBaseUrl}/movie/${movieId}?api_key=${tmdbApiKey}&language=pt-BR`);
         const movie = await response.json();
+        const videoId = await findYouTubeVideo(title);
         modalDetails.innerHTML = `
             <h2>${movie.title}</h2>
             <img src="${movie.poster_path ? imageBaseUrl + movie.poster_path : 'placeholder.jpg'}" alt="${movie.title}">
@@ -70,6 +91,7 @@ async function showMovieDetails(movieId) {
             <p class="rating"><i class="fas fa-star"></i> Avaliação: ${movie.vote_average.toFixed(1)}/10</p>
             <p>Lançamento: ${new Date(movie.release_date).toLocaleDateString('pt-BR')}</p>
             <p>Gêneros: ${movie.genres.map(g => g.name).join(', ')}</p>
+            ${videoId ? `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>` : '<p>Filme não disponível para streaming.</p>'}
         `;
         modal.style.display = 'flex';
     } catch (error) {
@@ -81,25 +103,27 @@ async function showMovieDetails(movieId) {
 // Fechar modal
 closeModal.addEventListener('click', () => {
     modal.style.display = 'none';
+    modalDetails.innerHTML = ''; // Limpa o modal para pausar o vídeo
 });
 
 // Busca por filmes
 searchInput.addEventListener('input', () => {
     const query = searchInput.value.trim();
+    genreFilter.value = ''; // Limpa o filtro de gênero
     loadMovies('', query);
 });
 
 // Filtro por gênero
 genreFilter.addEventListener('change', () => {
     const genreId = genreFilter.value;
-    searchInput.value = ''; // Limpa busca ao mudar gênero
+    searchInput.value = ''; // Limpa a busca
     loadMovies(genreId);
 });
 
 // Controle da sidebar mobile
 hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
 document.addEventListener('click', (event) => {
-    if (!event.target.closest('.sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+    if (!event.target.closest('.sidebar') && !event.target.closest('.hamburger') && sidebar.classFacing('open')) {
         sidebar.classList.remove('open');
     }
 });
