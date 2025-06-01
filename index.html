@@ -3,61 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lite ApkMod Filmes</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <title>Lite ApkMod Jogos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="header">
-        <h1>Lite Filmes <i class="fas fa-film"></i></h1>
-        <nav class="nav">
-            <a href="index.html" class="nav-item"><i class="fas fa-home"></i> Home</a>
-            <a href="sobre.html" class="nav-item"><i class="fas fa-info-circle"></i> Sobre</a>
-            <a href="contato.html" class="nav-item"><i class="fas fa-envelope"></i> Contato</a>
-        </nav>
-        <div class="hamburger">☰</div>
-    </header>
+    <div class="hamburger" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </div>
 
-    <main class="movie-section">
-        <div class="search-filter">
-            <input type="text" id="search-input" placeholder="Buscar filmes em português..." class="search-input">
-            <select id="genre-filter" class="genre-filter">
-                <option value="">Todos os Gêneros</option>
-                <!-- Gêneros carregados dinamicamente -->
-            </select>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            Lite ApkMod Jogos <i class="fas fa-gamepad"></i>
         </div>
-        <div class="movie-grid" id="movie-list">
-            <!-- Filmes adicionados dinamicamente -->
-        </div>
-    </main>
-
-    <aside class="sidebar">
-        <div class="sidebar-content">
-            <h3><i class="fas fa-user"></i> Quem sou eu</h3>
-            <p>Gabe</p>
-            <p>As mais lindas palavras de amor são ditas no silêncio de um olhar</p>
-            <h3><i class="fas fa-book"></i> Sobre o Blog</h3>
-            <p>Um espaço para explorar filmes incríveis!</p>
-            <h3><i class="fas fa-link"></i> Links Úteis</h3>
-            <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="sobre.html">Sobre</a></li>
-                <li><a href="contato.html">Contato</a></li>
-            </ul>
-        </div>
-    </aside>
-
-    <div class="modal" id="movie-modal">
-        <div class="modal-content">
-            <span class="close-modal">×</span>
-            <div id="modal-details"></div>
+        <a onclick="showWelcomeScreen()"><i class="fas fa-home"></i> Início</a>
+        <a onclick="openModal('gameListModal')"><i class="fas fa-list-ul"></i> Lista de Jogos</a>
+        <a href="sobre.html"><i class="fas fa-info-circle"></i> Sobre</a>
+        <a href="contato.html"><i class="fas fa-envelope"></i> Contato</a>
+        <div class="sidebar-footer">
+            <p>&copy; Lite ApkMod Jogos <span id="currentYear"></span></p>
         </div>
     </div>
 
-    <footer class="footer">
-        <p>(c) Lite Filmes 2025 <i class="fas fa-heart"></i></p>
-    </footer>
+    <div class="container" id="mainContainer">
+        <h1 id="pageTitle">Lite ApkMod Jogos <i class="fas fa-gamepad"></i></h1>
+        <p id="pageSubtitle">Seu portal de jogos casuais e divertidos!</p>
+        <button class="action-button" onclick="openModal('gameListModal')">
+            <i class="fas fa-play-circle"></i> Ver Lista de Jogos
+        </button>
+        </div>
+
+    <div class="modal" id="gameListModal">
+        <div class="modal-content">
+            <button class="close-modal-btn" onclick="closeModal('gameListModal')">&times;</button>
+            <h2><i class="fas fa-dice-d6"></i> Lista de Jogos</h2>
+            <div id="game-list-container">
+                </div>
+            <button class="action-button secondary" style="margin-top: 20px;" onclick="closeModal('gameListModal')">
+                <i class="fas fa-times-circle"></i> Fechar
+            </button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameSettingsModal">
+        <div class="modal-content">
+            <button class="close-modal-btn" onclick="closeSettingsModal()">&times;</button>
+            <h2 id="settingsModalTitle">Configurações do Jogo</h2>
+            <div id="settingsModalContent">
+                <p>Opções de jogo aparecerão aqui.</p>
+            </div>
+            <button class="action-button secondary" style="margin-top: 15px;" onclick="closeSettingsModal()">
+                <i class="fas fa-times-circle"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
+    <div class="modal" id="genericEndGameModal">
+        <div class="modal-content">
+            <button class="close-modal-btn" onclick="closeModal('genericEndGameModal'); showWelcomeScreen();">&times;</button>
+            <h2 id="endGameModalTitle">Fim de Jogo!</h2>
+            <p id="endGameModalMessage">Resultado do jogo aqui.</p>
+            <button class="action-button" onclick="closeModal('genericEndGameModal'); openModal('gameListModal');">
+                <i class="fas fa-list-ul"></i> Ver Lista de Jogos
+            </button>
+            <button id="restartCurrentGameBtn" class="action-button secondary" style="display:none;">
+                <i class="fas fa-redo"></i> Jogar Novamente
+            </button>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
 </html>
+
