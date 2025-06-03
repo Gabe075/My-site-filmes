@@ -1,0 +1,521 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arkanoid Avançado</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-in;
+            width: 100%;
+            max-width: 360px;
+            margin: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        canvas {
+            background: #000;
+            border-radius: 8px;
+            width: 270px;
+            height: 360px;
+            margin: 0 auto;
+            display: block;
+        }
+        .hamburger {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -200px;
+            width: 200px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 10px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 10px;
+            text-decoration: none;
+            font-size: 1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 90%;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.3s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #fff;
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (min-width: 600px) {
+            .container {
+                padding: 20px;
+                max-width: 500px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            canvas {
+                width: 360px;
+                height: 480px;
+            }
+            .modal-content {
+                width: 400px;
+                padding: 30px;
+            }
+            .modal-content h2 {
+                font-size: 2em;
+            }
+            .modal-content p {
+                font-size: 1.2em;
+            }
+            .modal-content button {
+                padding: 12px 25px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Arkanoid Avançado 🏓</h1>
+        <canvas id="gameCanvas" width="270" height="360"></canvas>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Arkanoid Avançado</h2>
+            <p>Mova a raquete para rebater a bola e quebrar blocos. Cuidado com os inimigos que atiram! Pegue power-ups para ajudar. Complete 10 níveis para vencer!</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você completou todos os níveis!</p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('gameOverModal')">×</span>
+            <h2>Game Over</h2>
+            <p>Você perdeu todas as vidas!</p>
+            <button onclick="resetAndShowStartModal()">Tentar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameState = {
+            paddle: { x: 110, y: 340, width: 50, height: 10, speed: 5 },
+            ball: { x: 135, y: 330, radius: 5, dx: 3, dy: -3 },
+            blocks: [], enemies: [], projectiles: [], powerUps: [],
+            lives: 3, level: 1, maxLevels: 10, score: 0
+        };
+        let isGameRunning = false;
+
+        document.getElementById('startModal').style.display = 'flex';
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        if (hamburger && sidebar) {
+            hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+            hamburger.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                sidebar.classList.toggle('open');
+            });
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                }
+            });
+        }
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'flex';
+            if (sidebar) sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            isGameRunning = false;
+            gameState = {
+                paddle: { x: 110, y: 340, width: 50, height: 10, speed: 5 },
+                ball: { x: 135, y: 330, radius: 5, dx: 3, dy: -3 },
+                blocks: [], enemies: [], projectiles: [], powerUps: [],
+                lives: 3, level: 1, maxLevels: 10, score: 0
+            };
+            closeModal('winModal');
+            closeModal('gameOverModal');
+            openModal('startModal');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function generateLevel() {
+            gameState.blocks = [];
+            gameState.enemies = [];
+            const rows = 3 + Math.floor(gameState.level / 3);
+            const cols = 8;
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (Math.random() < 0.7) {
+                        const isEnemy = gameState.level > 3 && Math.random() < 0.2;
+                        const x = 20 + j * 30;
+                        const y = 20 + i * 20;
+                        if (isEnemy) {
+                            gameState.enemies.push({ x, y, width: 20, height: 10 });
+                        } else {
+                            gameState.blocks.push({ x, y, width: 20, height: 10 });
+                        }
+                    }
+                }
+            }
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            generateLevel();
+            isGameRunning = true;
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!isGameRunning) return;
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            // Mover bola
+            gameState.ball.x += gameState.ball.dx;
+            gameState.ball.y += gameState.ball.dy;
+            if (gameState.ball.x - gameState.ball.radius < 0 || gameState.ball.x + gameState.ball.radius > canvas.width) {
+                gameState.ball.dx = -gameState.ball.dx;
+            }
+            if (gameState.ball.y - gameState.ball.radius < 0) {
+                gameState.ball.dy = -gameState.ball.dy;
+            }
+            if (gameState.ball.y > canvas.height) {
+                gameState.lives--;
+                if (gameState.lives <= 0) {
+                    isGameRunning = false;
+                    openModal('gameOverModal');
+                } else {
+                    gameState.ball = { x: 135, y: 330, radius: 5, dx: 3, dy: -3 };
+                }
+            }
+
+            // Colisão com raquete
+            if (gameState.ball.y + gameState.ball.radius > gameState.paddle.y &&
+                gameState.ball.x > gameState.paddle.x &&
+                gameState.ball.x < gameState.paddle.x + gameState.paddle.width) {
+                gameState.ball.dy = -Math.abs(gameState.ball.dy);
+                gameState.ball.dx += (gameState.ball.x - (gameState.paddle.x + gameState.paddle.width / 2)) * 0.1;
+            }
+
+            // Colisão com blocos
+            for (let i = gameState.blocks.length - 1; i >= 0; i--) {
+                const block = gameState.blocks[i];
+                if (gameState.ball.y - gameState.ball.radius < block.y + block.height &&
+                    gameState.ball.y + gameState.ball.radius > block.y &&
+                    gameState.ball.x > block.x &&
+                    gameState.ball.x < block.x + block.width) {
+                    gameState.blocks.splice(i, 1);
+                    gameState.ball.dy = -gameState.ball.dy;
+                    gameState.score += 10;
+                    if (Math.random() < 0.5) {
+                        gameState.powerUps.push({ x: block.x, y: block.y, width: 10, height: 10, type: 'bigPaddle' });
+                    }
+                }
+            }
+
+            // Colisão com inimigos
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                if (gameState.ball.y - gameState.ball.radius < enemy.y + enemy.height &&
+                    gameState.ball.y + gameState.ball.radius > enemy.y &&
+                    gameState.ball.x > enemy.x &&
+                    gameState.ball.x < enemy.x + enemy.width) {
+                    gameState.enemies.splice(i, 1);
+                    gameState.ball.dy = -gameState.ball.dy;
+                    gameState.score += 20;
+                }
+            }
+
+            // Mover projéteis
+            for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+                const proj = gameState.projectiles[i];
+                proj.y += proj.dy;
+                if (proj.y > canvas.height || proj.y < 0) {
+                    gameState.projectiles.splice(i, 1);
+                    continue;
+                }
+                if (proj.dy > 0 && proj.y + 5 > gameState.paddle.y &&
+                    proj.x > gameState.paddle.x &&
+                    proj.x < gameState.paddle.x + gameState.paddle.width) {
+                    proj.dy = -proj.dy;
+                    gameState.score += 5;
+                }
+            }
+
+            // Gerar projéteis
+            if (Math.random() < 0.01) {
+                gameState.enemies.forEach(enemy => {
+                    gameState.projectiles.push({ x: enemy.x + 10, y: enemy.y + 10, width: 5, height: 5, dy: 2 });
+                });
+            }
+
+            // Mover power-ups
+            for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+                const powerUp = gameState.powerUps[i];
+                powerUp.y += 1;
+                if (powerUp.y > canvas.height) {
+                    gameState.powerUps.splice(i, 1);
+                    continue;
+                }
+                if (powerUp.y + powerUp.height > gameState.paddle.y &&
+                    powerUp.x > gameState.paddle.x &&
+                    powerUp.x < gameState.paddle.x + gameState.paddle.width) {
+                    if (powerUp.type === 'bigPaddle') {
+                        gameState.paddle.width = 80;
+                        setTimeout(() => gameState.paddle.width = 50, 5000);
+                    }
+                    gameState.powerUps.splice(i, 1);
+                }
+            }
+
+            // Verificar nível concluído
+            if (gameState.blocks.length === 0 && gameState.enemies.length === 0) {
+                gameState.level++;
+                if (gameState.level > gameState.maxLevels) {
+                    isGameRunning = false;
+                    openModal('winModal');
+                } else {
+                    generateLevel();
+                    gameState.ball = { x: 135, y: 330, radius: 5, dx: 3, dy: -3 };
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Desenhar raquete
+            ctx.fillStyle = '#6e8efb';
+            ctx.fillRect(gameState.paddle.x, gameState.paddle.y, gameState.paddle.width, gameState.paddle.height);
+            // Desenhar bola
+            ctx.beginPath();
+            ctx.arc(gameState.ball.x, gameState.ball.y, gameState.ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            // Desenhar blocos
+            gameState.blocks.forEach(block => {
+                ctx.fillStyle = '#a777e3';
+                ctx.fillRect(block.x, block.y, block.width, block.height);
+            });
+            // Desenhar inimigos
+            gameState.enemies.forEach(enemy => {
+                ctx.fillStyle = '#ff5555';
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+            // Desenhar projéteis
+            gameState.projectiles.forEach(proj => {
+                ctx.fillStyle = '#ffff55';
+                ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
+            });
+            // Desenhar power-ups
+            gameState.powerUps.forEach(powerUp => {
+                ctx.fillStyle = '#55ff55';
+                ctx.fillRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height);
+            });
+            // Desenhar HUD
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText(`Vidas: ${gameState.lives}`, 10, 20);
+            ctx.fillText(`Nível: ${gameState.level}`, 100, 20);
+            ctx.fillText(`Pontos: ${gameState.score}`, 190, 20);
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            gameState.paddle.x = (e.clientX - rect.left) * scaleX - gameState.paddle.width / 2;
+            if (gameState.paddle.x < 0) gameState.paddle.x = 0;
+            if (gameState.paddle.x > canvas.width - gameState.paddle.width) gameState.paddle.x = canvas.width - gameState.paddle.width;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            gameState.paddle.x = (e.touches[0].clientX - rect.left) * scaleX - gameState.paddle.width / 2;
+            if (gameState.paddle.x < 0) gameState.paddle.x = 0;
+            if (gameState.paddle.x > canvas.width - gameState.paddle.width) gameState.paddle.x = canvas.width - gameState.paddle.width;
+        });
+    </script>
+</body>
+</html>

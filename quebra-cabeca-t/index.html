@@ -1,0 +1,87 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quebra-Cabeça de Imagem</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div id="sidebar" class="sidebar">
+        <a href="#" onclick="openModal('startModal')">🔄 Novo Jogo</a>
+    </div>
+    <div class="container">
+        <h1>Quebra-Cabeça de Imagem</h1>
+        <div id="moves">Jogadas: 0</div>
+        <div id="grid" class="grid"></div>
+        <div id="piece-bank" class="piece-bank"></div>
+    </div>
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Quebra-Cabeça de Imagem</h2>
+            <p>Escolha uma imagem e dificuldade:</p>
+            <div class="image-selector">
+                <div class="image-option" data-image="puzzle_image1.png" onclick="selectImage('puzzle_image1.png')"></div>
+                <div class="image-option" data-image="puzzle_image2.png" onclick="selectImage('puzzle_image2.png')"></div>
+                <div class="image-option" data-image="puzzle_image3.png" onclick="selectImage('puzzle_image3.png')"></div>
+            </div>
+            <div class="difficulty-selector">
+                <button id="diff-3" class="difficulty-btn" onclick="selectDifficulty(3)">3×3</button>
+                <button id="diff-4" class="difficulty-btn active" onclick="selectDifficulty(4)">4×4</button>
+                <button id="diff-5" class="difficulty-btn" onclick="selectDifficulty(5)">5×5</button>
+            </div>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você completou o quebra-cabeça em <span id="finalMoves"></span> jogadas!</p>
+            <button onclick="startGame()">Novo Jogo</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

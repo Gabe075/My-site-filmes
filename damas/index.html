@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Damas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 600px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #game-message {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+        .board {
+            display: none;
+            grid-template-columns: repeat(8, 60px);
+            gap: 2px;
+            margin: 20px auto;
+            width: 484px;
+            height: 484px;
+            background: #8b4513;
+            padding: 2px;
+            border-radius: 10px;
+        }
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            cursor: pointer;
+            position: relative;
+        }
+        .square.light {
+            background: #f0d9b5;
+        }
+        .square.dark {
+            background: #b58863;
+        }
+        .square.selected {
+            background: #ffeb3b;
+        }
+        .square.possible-move {
+            background: #aaffaa;
+        }
+        .piece {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            position: absolute;
+            transition: transform 0.3s ease, opacity 0.3s ease, scale 0.3s ease;
+        }
+        .piece.white {
+            background: #ffffff;
+            border: 2px solid #000000;
+            color: #333;
+        }
+        .piece.black {
+            background: #000000;
+            border: 2px solid #ffffff;
+            color: #fff;
+        }
+        .piece.king::after {
+            content: "👑";
+            position: absolute;
+            font-size: 20px;
+        }
+        .piece.capturing {
+            transition: transform 0.5s ease;
+        }
+        .piece.captured {
+            animation: disappear 0.3s forwards;
+        }
+        @keyframes disappear {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar select, .sidebar button {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+            background: none;
+            border: 1px solid #fff;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar select:hover, .sidebar button:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            margin: 5px;
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        #turn {
+            margin: 20px 0;
+            font-size: 1.1em;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        @media (max-width: 600px) {
+            .board {
+                grid-template-columns: repeat(8, 40px);
+                width: 324px;
+                height: 324px;
+            }
+            .square {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            .piece {
+                width: 30px;
+                height: 30px;
+                font-size: 15px;
+            }
+            .piece.king::after {
+                font-size: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 15px;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+            .sidebar select, .sidebar button {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <select id="gameMode" onchange="updateGameMode()">
+            <option value="">Escolher Modo</option>
+            <option value="ai">Contra IA</option>
+            <option value="local">Local (Mesmo Dispositivo)</option>
+        </select>
+        <div id="aiDifficulty" style="display: none;">
+            <select id="difficulty" onchange="updateDifficulty()">
+                <option value="easy">Fácil</option>
+                <option value="medium">Médio</option>
+                <option value="hard">Difícil</option>
+            </select>
+        </div>
+        <button onclick="startNewGame()">🔄 Novo Jogo</button>
+    </div>
+
+    <div class="container">
+        <h1>Jogo de Damas</h1>
+        <div id="game-message">Escolha o modo de jogo na barra lateral para começar!</div>
+        <div id="turn">Vez: Pretas</div>
+        <div class="board" id="board"></div>
+    </div>
+
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p><span id="winner"></span> venceu!</p>
+            <button onclick="startNewGame()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        let board = [];
+        let selectedPiece = null;
+        let currentTurn = 'black';
+        let gameMode = '';
+        let aiDifficulty = 'easy'; // Padrão ajustado para string
+        let mustCapture = false;
+        let capturedThisTurn = false;
+
+        const boardElement = document.getElementById('board');
+        const turnDisplay = document.getElementById('turn');
+        const gameMessage = document.getElementById('game-message');
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function updateGameMode() {
+            gameMode = document.getElementById('gameMode').value;
+            document.getElementById('aiDifficulty').style.display = gameMode === 'ai' ? 'block' : 'none';
+            if (gameMode) {
+                document.getElementById('game-message').style.display = 'none';
+                document.getElementById('board').style.display = 'grid';
+                document.getElementById('turn').style.display = 'block';
+                startNewGame();
+            } else {
+                document.getElementById('game-message').style.display = 'block';
+                document.getElementById('board').style.display = 'none';
+                document.getElementById('turn').style.display = 'none';
+            }
+        }
+
+        function updateDifficulty() {
+            aiDifficulty = document.getElementById('difficulty').value;
+            startNewGame();
+        }
+
+        function startNewGame() {
+            boardElement.innerHTML = '';
+            selectedPiece = null;
+            mustCapture = false;
+            capturedThisTurn = false;
+            currentTurn = 'black';
+            updateTurnDisplay();
+            closeModal('winModal');
+            initializeBoard();
+            renderBoard();
+            if (gameMode === 'ai' && currentTurn === 'white') {
+                setTimeout(aiMove, 500);
+            }
+        }
+
+        function updateTurnDisplay() {
+            turnDisplay.textContent = `Vez: ${currentTurn === 'black' ? 'Pretas' : 'Brancas'}`;
+        }
+
+        function initializeBoard() {
+            board = Array(8).fill().map(() => Array(8).fill(null));
+            for (let row = 5; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if ((row + col) % 2 === 1) {
+                        board[row][col] = { color: 'black', king: false };
+                    }
+                }
+            }
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if ((row + col) % 2 === 1) {
+                        board[row][col] = { color: 'white', king: false };
+                    }
+                }
+            }
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+
+                    const piece = board[row][col];
+                    if (piece) {
+                        const pieceElement = document.createElement('div');
+                        pieceElement.classList.add('piece', piece.color);
+                        if (piece.king) pieceElement.classList.add('king');
+                        pieceElement.dataset.row = row;
+                        pieceElement.dataset.col = col;
+                        pieceElement.addEventListener('click', (event) => selectPiece(event));
+                        square.appendChild(pieceElement);
+                    }
+
+                    square.addEventListener('click', (event) => movePiece(event));
+                    boardElement.appendChild(square);
+                }
+            }
+
+            if (selectedPiece && currentTurn === 'black') {
+                const moves = getPossibleMoves(selectedPiece.row, selectedPiece.col);
+                moves.forEach(([row, col]) => {
+                    const square = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+                    if (square && !square.querySelector('.piece')) square.classList.add('possible-move');
+                });
+            }
+        }
+
+        function selectPiece(event) {
+            event.stopPropagation();
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+            const piece = board[row][col];
+
+            if (!piece || piece.color !== currentTurn || currentTurn === 'white') return;
+
+            if (capturedThisTurn && selectedPiece && (row !== selectedPiece.row || col !== selectedPiece.col)) return;
+
+            const captures = getAllCaptures(currentTurn);
+            if (captures.length > 0) {
+                mustCapture = true;
+                const canCapture = captures.some(([fromRow, fromCol]) => fromRow === row && fromCol === col);
+                if (!canCapture) return;
+            } else {
+                mustCapture = false;
+            }
+
+            if (selectedPiece) {
+                const prevSquare = document.querySelector(`.square[data-row="${selectedPiece.row}"][data-col="${selectedPiece.col}"]`);
+                if (prevSquare) prevSquare.classList.remove('selected');
+            }
+
+            selectedPiece = { row, col };
+            const currentSquare = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+            if (currentSquare) currentSquare.classList.add('selected');
+            renderBoard();
+        }
+
+        async function movePiece(event) {
+            event.stopPropagation();
+            if (!selectedPiece || currentTurn !== 'black') return;
+
+            const toRow = parseInt(event.target.dataset.row);
+            const toCol = parseInt(event.target.dataset.col);
+            const fromRow = selectedPiece.row;
+            const fromCol = selectedPiece.col;
+
+            const move = isValidMove(fromRow, fromCol, toRow, toCol);
+            if (move) {
+                const piece = board[fromRow][fromCol];
+                const pieceElement = document.querySelector(`.piece[data-row="${fromRow}"][data-col="${fromCol}"]`);
+                if (!pieceElement) return;
+
+                const squareSize = pieceElement.parentElement.offsetWidth;
+                const deltaX = (toCol - fromCol) * squareSize;
+                const deltaY = (toRow - fromRow) * squareSize;
+
+                if (move.captured) {
+                    move.captured.forEach(([capRow, capCol]) => {
+                        const capturedPiece = document.querySelector(`.piece[data-row="${capRow}"][data-col="${capCol}"]`);
+                        if (capturedPiece) capturedPiece.classList.add('captured');
+                        board[capRow][capCol] = null;
+                    });
+                    capturedThisTurn = true;
+                }
+
+                pieceElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                board[toRow][toCol] = { ...piece };
+                board[fromRow][fromCol] = null;
+                pieceElement.dataset.row = toRow;
+                pieceElement.dataset.col = toCol;
+                pieceElement.style.transform = 'translate(0, 0)';
+
+                if ((piece.color === 'black' && toRow === 0) || (piece.color === 'white' && toRow === 7)) {
+                    board[toRow][toCol].king = true;
+                }
+
+                const nextCaptures = getPossibleCaptures(toRow, toCol);
+                if (nextCaptures.length > 0 && move.captured) {
+                    selectedPiece = { row: toRow, col: toCol };
+                    const square = document.querySelector(`.square[data-row="${toRow}"][data-col="${toCol}"]`);
+                    if (square) square.classList.add('selected');
+                    renderBoard();
+                    return;
+                }
+
+                capturedThisTurn = false;
+                selectedPiece = null;
+                currentTurn = 'white';
+                updateTurnDisplay();
+                mustCapture = false;
+
+                renderBoard();
+                checkWin();
+
+                if (gameMode === 'ai' && currentTurn === 'white') {
+                    setTimeout(aiMove, 500);
+                }
+            }
+        }
+
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            const piece = board[fromRow][fromCol];
+            if (!piece || board[toRow][toCol]) return false;
+
+            const rowDiff = toRow - fromRow;
+            const colDiff = toCol - fromCol;
+            const isDiagonal = Math.abs(rowDiff) === Math.abs(colDiff);
+
+            if (!isDiagonal) return false;
+
+            if (mustCapture) {
+                const captures = getPossibleCaptures(fromRow, fromCol);
+                const captureMove = captures.find(([r, c]) => r === toRow && c === toCol);
+                return captureMove ? { captured: captureMove[2] } : false;
+            }
+
+            if (piece.king) {
+                const stepRow = rowDiff > 0 ? 1 : -1;
+                const stepCol = colDiff > 0 ? 1 : -1;
+                let r = fromRow + stepRow;
+                let c = fromCol + stepCol;
+                let captured = [];
+
+                while (r !== toRow && c !== toCol) {
+                    if (board[r][c]) {
+                        if (board[r][c].color === piece.color) return false;
+                        captured.push([r, c]);
+                    }
+                    r += stepRow;
+                    c += stepCol;
+                }
+                return captured.length > 0 ? { captured: captured } : { captured: null };
+            } else {
+                const forwardDirection = piece.color === 'black' ? -1 : 1;
+                if (Math.abs(rowDiff) === 1 && Math.abs(colDiff) === 1) {
+                    if (rowDiff * forwardDirection > 0) {
+                        return { captured: null }; // Movimento simples para frente
+                    }
+                }
+
+                const captures = getPossibleCaptures(fromRow, fromCol);
+                const captureMove = captures.find(([r, c]) => r === toRow && c === toCol);
+                return captureMove ? { captured: captureMove[2] } : false;
+            }
+        }
+
+        function getPossibleMoves(row, col) {
+            const piece = board[row][col];
+            if (!piece) return [];
+
+            const moves = [];
+            const captures = getPossibleCaptures(row, col);
+
+            if (mustCapture && captures.length > 0) return captures;
+
+            const forwardDirection = piece.color === 'black' ? -1 : 1;
+            const directions = piece.king ? [[-1, 1], [-1, -1], [1, 1], [1, -1]] : [[forwardDirection, 1], [forwardDirection, -1]];
+
+            if (piece.king) {
+                directions.forEach(([dr, dc]) => {
+                    let r = row + dr;
+                    let c = col + dc;
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        if (!board[r][c]) {
+                            moves.push([r, c]);
+                        } else {
+                            break;
+                        }
+                        r += dr;
+                        c += dc;
+                    }
+                });
+            } else {
+                directions.forEach(([dr, dc]) => {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+                    if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8 && !board[newRow][newCol]) {
+                        moves.push([newRow, newCol]);
+                    }
+                });
+            }
+
+            return [...moves, ...captures];
+        }
+
+        function getPossibleCaptures(row, col) {
+            const piece = board[row][col];
+            if (!piece) return [];
+
+            const captures = [];
+            const directions = [[-1, 1], [-1, -1], [1, 1], [1, -1]];
+
+            if (piece.king) {
+                directions.forEach(([dr, dc]) => {
+                    let r = row + dr;
+                    let c = col + dc;
+                    let captured = [];
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        if (board[r][c]) {
+                            if (board[r][c].color === piece.color) break;
+                            captured.push([r, c]);
+                            r += dr;
+                            c += dc;
+                            if (r >= 0 && r < 8 && c >= 0 && c < 8 && !board[r][c]) {
+                                captures.push([r, c, captured]);
+                                r += dr;
+                                c += dc;
+                                while (r >= 0 && r < 8 && c >= 0 && c < 8 && !board[r][c]) {
+                                    captures.push([r, c, captured]);
+                                    r += dr;
+                                    c += dc;
+                                }
+                            }
+                            break;
+                        }
+                        r += dr;
+                        c += dc;
+                    }
+                });
+            } else {
+                directions.forEach(([dr, dc]) => {
+                    const midRow = row + dr;
+                    const midCol = col + dc;
+                    const newRow = row + 2 * dr;
+                    const newCol = col + 2 * dc;
+
+                    if (midRow >= 0 && midRow < 8 && midCol >= 0 && midCol < 8 &&
+                        newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
+                        const midPiece = board[midRow][midCol];
+                        if (midPiece && midPiece.color !== piece.color && !board[newRow][newCol]) {
+                            captures.push([newRow, newCol, [[midRow, midCol]]]);
+                        }
+                    }
+                });
+            }
+
+            if (captures.length > 0) mustCapture = true;
+            return captures;
+        }
+
+        function getAllCaptures(color) {
+            const captures = [];
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.color === color) {
+                        const pieceCaptures = getPossibleCaptures(row, col);
+                        pieceCaptures.forEach(([r, c, captured]) => {
+                            captures.push([row, col, r, c, captured]);
+                        });
+                    }
+                }
+            }
+            return captures;
+        }
+
+        function getAllMoves(color) {
+            const moves = [];
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.color === color) {
+                        getPossibleMoves(row, col).forEach(([r, c]) => moves.push([row, col, r, c]));
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function checkWin() {
+            let whitePieces = 0;
+            let blackPieces = 0;
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        if (piece.color === 'white') whitePieces++;
+                        if (piece.color === 'black') blackPieces++;
+                    }
+                }
+            }
+
+            if (whitePieces === 0) {
+                document.getElementById('winner').textContent = 'Pretas';
+                openModal('winModal');
+            } else if (blackPieces === 0) {
+                document.getElementById('winner').textContent = 'Brancas';
+                openModal('winModal');
+            }
+        }
+
+        async function aiMove() {
+            let captures = getAllCaptures('white');
+            let moves = captures.length > 0 ? captures : getAllMoves('white');
+            if (moves.length === 0) {
+                document.getElementById('winner').textContent = 'Pretas';
+                openModal('winModal');
+                return;
+            }
+
+            let bestMove = null;
+
+            // Sempre priorizar capturas
+            if (captures.length > 0) {
+                const maxCaptured = Math.max(...captures.map(move => move[4].length));
+                const bestCaptures = captures.filter(move => move[4].length === maxCaptured);
+                bestMove = bestCaptures[Math.floor(Math.random() * bestCaptures.length)];
+            } else {
+                // Lógica baseada em heurísticas para movimentos normais
+                const randomChance = Math.random();
+                if (aiDifficulty === 'easy' && randomChance < 0.7) {
+                    // Fácil: 70% de chance de movimento aleatório
+                    bestMove = moves[Math.floor(Math.random() * moves.length)];
+                } else if (aiDifficulty === 'medium' && randomChance < 0.3) {
+                    // Médio: 30% de chance de movimento aleatório
+                    bestMove = moves[Math.floor(Math.random() * moves.length)];
+                } else {
+                    // Estratégia baseada em heurísticas
+                    let bestScore = -Infinity;
+                    for (const move of moves) {
+                        const [fromRow, fromCol, toRow, toCol] = move;
+                        let score = 0;
+
+                        // Heurística 1: Avançar para o lado oposto (para virar dama)
+                        if (board[fromRow][fromCol].king) {
+                            score += Math.abs(toRow - fromRow); // Reis podem se mover em qualquer direção
+                        } else {
+                            score += (7 - toRow); // Quanto mais perto da linha 7, melhor
+                        }
+
+                        // Heurística 2: Evitar ser capturado no próximo turno
+                        const tempBoard = board.map(row => [...row]);
+                        tempBoard[toRow][toCol] = tempBoard[fromRow][fromCol];
+                        tempBoard[fromRow][fromCol] = null;
+                        if (tempBoard[toRow][toCol].color === 'white' && toRow === 7) tempBoard[toRow][toCol].king = true;
+                        const opponentCaptures = getAllCaptures('black');
+                        const isVulnerable = opponentCaptures.some(([_, __, r, c]) => r === toRow && c === toCol);
+                        if (isVulnerable) score -= 5; // Penalidade por deixar a peça vulnerável
+
+                        // Pequena aleatoriedade para evitar repetição
+                        score += Math.random() * 0.1;
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = move;
+                        }
+                    }
+                }
+            }
+
+            if (bestMove) {
+                let [fromRow, fromCol, toRow, toCol, captures] = bestMove;
+                let continueCapturing = true;
+
+                while (continueCapturing) {
+                    const pieceElement = document.querySelector(`.piece[data-row="${fromRow}"][data-col="${fromCol}"]`);
+                    if (!pieceElement) return;
+                    const squareSize = pieceElement.parentElement.offsetWidth;
+                    const deltaX = (toCol - fromCol) * squareSize;
+                    const deltaY = (toRow - fromRow) * squareSize;
+
+                    if (captures && captures.length > 0) {
+                        pieceElement.classList.add('capturing');
+                        for (const [row, col] of captures) {
+                            const capturedPiece = document.querySelector(`.piece[data-row="${row}"][data-col="${col}"]`);
+                            if (capturedPiece) capturedPiece.classList.add('captured');
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
+
+                    pieceElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                    await new Promise(resolve => setTimeout(resolve, captures && captures.length > 0 ? 500 : 300));
+
+                    board[toRow][toCol] = board[fromRow][fromCol];
+                    board[fromRow][fromCol] = null;
+                    pieceElement.dataset.row = toRow;
+                    pieceElement.dataset.col = toCol;
+
+                    if (captures && captures.length > 0) {
+                        captures.forEach(([row, col]) => {
+                            board[row][col] = null;
+                        });
+                    }
+
+                    const piece = board[toRow][toCol];
+                    if (piece.color === 'white' && toRow === 7) piece.king = true;
+
+                    const nextCaptures = getPossibleCaptures(toRow, toCol);
+                    if (nextCaptures.length > 0 && captures && captures.length > 0) {
+                        const maxCaptured = Math.max(...nextCaptures.map(move => move[2].length));
+                        const bestNextCaptures = nextCaptures.filter(move => move[2].length === maxCaptured);
+                        const nextMove = bestNextCaptures[Math.floor(Math.random() * bestNextCaptures.length)];
+                        fromRow = toRow;
+                        fromCol = toCol;
+                        toRow = nextMove[0];
+                        toCol = nextMove[1];
+                        captures = nextMove[2];
+                    } else {
+                        continueCapturing = false;
+                    }
+
+                    renderBoard();
+                }
+
+                checkWin();
+                currentTurn = 'black';
+                updateTurnDisplay();
+            }
+        }
+
+        startNewGame();
+    </script>
+</body>
+</html>

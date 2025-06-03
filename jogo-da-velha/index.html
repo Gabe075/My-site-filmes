@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 400px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #game-message {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+        #board {
+            display: none;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            margin: 20px auto;
+            width: 310px;
+            height: 310px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s ease;
+        }
+        .cell:hover {
+            background: #e0e0e0;
+        }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar select, .sidebar button {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+            background: none;
+            border: 1px solid #fff;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar select:hover, .sidebar button:hover {
+            background: #34495e;
+        }
+        .emoji-picker {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .emoji-picker span {
+            margin-right: 10px;
+        }
+        .emoji-picker input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 100px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 15px;
+            }
+            #board {
+                grid-template-columns: repeat(3, 80px);
+                width: 250px;
+                height: 250px;
+            }
+            .cell {
+                width: 80px;
+                height: 80px;
+                font-size: 30px;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <select id="gameMode" onchange="updateGameMode()">
+            <option value="">Escolher Modo</option>
+            <option value="ai">Contra IA</option>
+            <option value="local">Local (Mesmo Dispositivo)</option>
+        </select>
+        <div id="aiDifficulty" style="display: none;">
+            <select id="difficulty" onchange="updateDifficulty()">
+                <option value="easy">Fácil</option>
+                <option value="medium">Médio</option>
+                <option value="hard">Difícil</option>
+            </select>
+        </div>
+        <div class="emoji-picker">
+            <span>Jogador 1:</span>
+            <input id="player1Emoji" type="text" value="❌" maxlength="2" oninput="updateEmojis()">
+        </div>
+        <div class="emoji-picker">
+            <span>Jogador 2/IA:</span>
+            <input id="player2Emoji" type="text" value="⭕" maxlength="2" oninput="updateEmojis()">
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Jogo da Velha</h1>
+        <div id="game-message">Escolha o modo de jogo na barra lateral para começar!</div>
+        <div id="board"></div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p id="winMessage"></p>
+            <button onclick="resetGame()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="drawModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('drawModal')">×</span>
+            <h2>Empate!</h2>
+            <p>O jogo terminou em empate.</p>
+            <button onclick="resetGame()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        let board = Array(9).fill(null);
+        let currentPlayer = 'X';
+        let gameMode = '';
+        let difficulty = 'easy';
+        let player1Emoji = '❌';
+        let player2Emoji = '⭕';
+
+        // Sidebar e eventos
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function updateGameMode() {
+            gameMode = document.getElementById('gameMode').value;
+            document.getElementById('aiDifficulty').style.display = gameMode === 'ai' ? 'block' : 'none';
+            document.getElementById('game-message').style.display = 'none';
+            document.getElementById('board').style.display = 'grid';
+            resetGame();
+        }
+
+        function updateDifficulty() {
+            difficulty = document.getElementById('difficulty').value;
+            resetGame();
+        }
+
+        function updateEmojis() {
+            player1Emoji = document.getElementById('player1Emoji').value || '❌';
+            player2Emoji = document.getElementById('player2Emoji').value || '⭕';
+            resetGame();
+        }
+
+        function createBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => makeMove(i));
+                boardElement.appendChild(cell);
+            }
+        }
+
+        function makeMove(index) {
+            if (board[index] || checkWinner()) return;
+
+            board[index] = currentPlayer;
+            updateBoard();
+            if (checkWinner()) {
+                document.getElementById('winMessage').textContent = `Jogador ${currentPlayer === 'X' ? '1' : gameMode === 'ai' ? 'IA' : '2'} (${currentPlayer === 'X' ? player1Emoji : player2Emoji}) venceu!`;
+                openModal('winModal');
+                return;
+            }
+            if (board.every(cell => cell)) {
+                openModal('drawModal');
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            if (gameMode === 'ai' && currentPlayer === 'O') {
+                setTimeout(makeAIMove, 500);
+            }
+        }
+
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = board[index] === 'X' ? player1Emoji : board[index] === 'O' ? player2Emoji : '';
+            });
+        }
+
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Linhas
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colunas
+                [0, 4, 8], [2, 4, 6] // Diagonais
+            ];
+            return winPatterns.some(pattern => {
+                const [a, b, c] = pattern;
+                return board[a] && board[a] === board[b] && board[a] === board[c];
+            });
+        }
+
+        function makeAIMove() {
+            let move;
+            const randomChance = Math.random();
+            if (difficulty === 'easy' && randomChance < 0.7) {
+                move = getRandomMove();
+            } else if (difficulty === 'medium' && randomChance < 0.3) {
+                move = getRandomMove();
+            } else {
+                move = minimax(board, 'O').index;
+            }
+            makeMove(move);
+        }
+
+        function getRandomMove() {
+            const availableMoves = board
+                .map((cell, index) => (cell === null ? index : null))
+                .filter(index => index !== null);
+            return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+        }
+
+        function minimax(newBoard, player) {
+            const availableSpots = newBoard
+                .map((cell, index) => (cell === null ? index : null))
+                .filter(index => index !== null);
+
+            if (checkWinnerFor(newBoard, 'X')) return { score: -10 };
+            if (checkWinnerFor(newBoard, 'O')) return { score: 10 };
+            if (availableSpots.length === 0) return { score: 0 };
+
+            const moves = [];
+            for (let i = 0; i < availableSpots.length; i++) {
+                const move = {};
+                move.index = availableSpots[i];
+                newBoard[availableSpots[i]] = player;
+
+                if (player === 'O') {
+                    const result = minimax(newBoard, 'X');
+                    move.score = result.score;
+                } else {
+                    const result = minimax(newBoard, 'O');
+                    move.score = result.score;
+                }
+
+                newBoard[availableSpots[i]] = null;
+                moves.push(move);
+            }
+
+            let bestMove;
+            if (player === 'O') {
+                let bestScore = -Infinity;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score > bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = moves[i];
+                    }
+                }
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score < bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = moves[i];
+                    }
+                }
+            }
+
+            return bestMove;
+        }
+
+        function checkWinnerFor(board, player) {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+            return winPatterns.some(pattern => {
+                const [a, b, c] = pattern;
+                return board[a] === player && board[a] === board[b] && board[a] === board[c];
+            });
+        }
+
+        function resetGame() {
+            board = Array(9).fill(null);
+            // 50% de chance de a IA começar no modo Contra IA
+            if (gameMode === 'ai') {
+                currentPlayer = Math.random() < 0.5 ? 'X' : 'O';
+            } else {
+                currentPlayer = 'X'; // No modo Local, Jogador 1 sempre começa
+            }
+
+            if (gameMode) {
+                document.getElementById('board').style.display = 'grid';
+                document.getElementById('game-message').style.display = 'none';
+                createBoard();
+                if (gameMode === 'ai' && currentPlayer === 'O') {
+                    setTimeout(makeAIMove, 500);
+                }
+            } else {
+                document.getElementById('board').style.display = 'none';
+                document.getElementById('game-message').style.display = 'block';
+            }
+            closeModal('winModal');
+            closeModal('drawModal');
+        }
+    </script>
+</body>
+</html>

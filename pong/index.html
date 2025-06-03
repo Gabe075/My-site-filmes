@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong</title>
+    <link rel="stylesheet" href="../../style.css"> <!-- Ajustado para a raiz -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 360px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #score {
+            font-size: 1.1em;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 5px;
+        }
+        #highScore {
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        #gameCanvas {
+            background: #000;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            height: 300px;
+            display: block;
+            margin: 0 auto;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+            width: 190px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .control-btn {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            backdrop-filter: blur(5px);
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .control-btn.up { grid-column: 1; }
+        .control-btn.down { grid-column: 2; }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover, .hamburger:active {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a, .sidebar select {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+            background: none;
+            border: 1px solid #fff;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar a:hover, .sidebar select:hover, .sidebar a:active, .sidebar select:active {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 20px;
+            max-width: 300px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 25px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:active {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 360px) {
+            .container {
+                padding: 15px;
+            }
+            #gameCanvas {
+                width: 240px;
+                height: 240px;
+            }
+            .controls {
+                width: 150px;
+            }
+            .control-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 1.5em;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            #score, #highScore {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <select id="difficulty" onchange="updateDifficulty()">
+            <option value="easy">Fácil</option>
+            <option value="medium">Médio</option>
+            <option value="hard">Difícil</option>
+        </select>
+        <a onclick="startGame()">🔄 Novo Jogo</a>
+        <a onclick="togglePause()">⏯️ Pausar/Continuar</a>
+    </div>
+
+    <div class="container">
+        <h1>Pong</h1>
+        <div id="score">0 - 0</div>
+        <div id="highScore">Recorde: 0</div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+            <div class="control-btn up">↑</div>
+            <div class="control-btn down">↓</div>
+        </div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Pong</h2>
+            <p>Use os botões ↑↓ para mover a raquete e rebater a bola 🏐!</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('gameOverModal')">×</span>
+            <h2>Fim de Jogo!</h2>
+            <p>Pontuação: <span id="finalScore"></span></p>
+            <p>Recorde: <span id="finalHighScore"></span></p>
+            <button onclick="startGame()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="pauseModal">
+        <div class="modal-content">
+            <span class="close" onclick="togglePause()">×</span>
+            <h2>Jogo Pausado</h2>
+            <p>Pressione "Continuar" para voltar.</p>
+            <button onclick="togglePause()">Continuar</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const isSmallScreen = window.innerWidth <= 360;
+        canvas.width = isSmallScreen ? 240 : 300;
+        canvas.height = isSmallScreen ? 240 : 300;
+        const paddleWidth = 10, paddleHeight = 40, ballSize = 8;
+        let player = { y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 5 };
+        let opponent = { y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 4 };
+        let ball = { x: canvas.width / 2, y: canvas.height / 2, dx: 3, dy: 3 };
+        let highScore = localStorage.getItem('pongHighScore') || 0;
+        let gameLoopInterval = null;
+        let isPaused = false;
+        let difficulty = 'medium';
+        let isMovingUp = false;
+        let isMovingDown = false;
+
+        document.getElementById('highScore').textContent = `Recorde: ${highScore}`;
+        document.getElementById('startModal').style.display = 'flex';
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('touchstart', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function updateDifficulty() {
+            difficulty = document.getElementById('difficulty').value;
+            ball.dx = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 3 : 4;
+            ball.dy = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 3 : 4;
+            opponent.speed = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 4 : 5;
+        }
+
+        function preventDefault(e) {
+            e.preventDefault();
+        }
+
+        function setupControls() {
+            const upBtn = document.querySelector('.control-btn.up');
+            const downBtn = document.querySelector('.control-btn.down');
+
+            upBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPaused) isMovingUp = true;
+            });
+            upBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isMovingUp = false;
+            });
+            downBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPaused) isMovingDown = true;
+            });
+            downBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isMovingDown = false;
+            });
+
+            // Prevenir comportamento padrão de scroll
+            upBtn.addEventListener('touchmove', preventDefault);
+            downBtn.addEventListener('touchmove', preventDefault);
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            closeModal('gameOverModal');
+            player = { y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 5 };
+            opponent = { y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 4 };
+            ball = { x: canvas.width / 2, y: canvas.height / 2, dx: 3, dy: 3 };
+            document.getElementById('score').textContent = `${player.score} - ${opponent.score}`;
+            updateDifficulty();
+            if (gameLoopInterval) clearInterval(gameLoopInterval);
+            isPaused = false;
+            isMovingUp = false;
+            isMovingDown = false;
+            gameLoopInterval = setInterval(gameLoop, 1000 / 60);
+            setupControls();
+        }
+
+        function togglePause() {
+            if (isPaused) {
+                closeModal('pauseModal');
+                isPaused = false;
+                gameLoopInterval = setInterval(gameLoop, 1000 / 60);
+            } else {
+                openModal('pauseModal');
+                isPaused = true;
+                clearInterval(gameLoopInterval);
+            }
+        }
+
+        function gameLoop() {
+            // Mover raquete do jogador
+            if (isMovingUp && !isMovingDown) {
+                player.y -= player.speed;
+            } else if (isMovingDown && !isMovingUp) {
+                player.y += player.speed;
+            }
+            if (player.y < 0) player.y = 0;
+            if (player.y > canvas.height - paddleHeight) player.y = canvas.height - paddleHeight;
+
+            // Mover raquete do adversário (IA)
+            if (ball.y < opponent.y + paddleHeight / 2) opponent.y -= opponent.speed;
+            if (ball.y > opponent.y + paddleHeight / 2) opponent.y += opponent.speed;
+            if (opponent.y < 0) opponent.y = 0;
+            if (opponent.y > canvas.height - paddleHeight) opponent.y = canvas.height - paddleHeight;
+
+            // Mover bola
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Colisão com topo e fundo
+            if (ball.y < 0 || ball.y > canvas.height - ballSize) {
+                ball.dy = -ball.dy;
+            }
+
+            // Colisão com raquetes
+            if (ball.x < paddleWidth && ball.y > player.y && ball.y < player.y + paddleHeight) {
+                ball.dx = -ball.dx * 1.1;
+                ball.x = paddleWidth;
+            }
+            if (ball.x > canvas.width - paddleWidth - ballSize && ball.y > opponent.y && ball.y < opponent.y + paddleHeight) {
+                ball.dx = -ball.dx * 1.1;
+                ball.x = canvas.width - paddleWidth - ballSize;
+            }
+
+            // Gol
+            if (ball.x < 0) {
+                opponent.score++;
+                resetBall();
+            }
+            if (ball.x > canvas.width - ballSize) {
+                player.score++;
+                resetBall();
+            }
+
+            // Atualizar pontuação
+            document.getElementById('score').textContent = `${player.score} - ${opponent.score}`;
+            if (player.score > highScore) {
+                highScore = player.score;
+                localStorage.setItem('pongHighScore', highScore);
+                document.getElementById('highScore').textContent = `Recorde: ${highScore}`;
+            }
+
+            // Fim de jogo (7 pontos)
+            if (player.score >= 7 || opponent.score >= 7) {
+                clearInterval(gameLoopInterval);
+                document.getElementById('finalScore').textContent = `${player.score} - ${opponent.score}`;
+                document.getElementById('finalHighScore').textContent = highScore;
+                openModal('gameOverModal');
+            }
+
+            // Desenhar
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(canvas.width / 2 - 1, 0, 2, canvas.height); // Linha central
+            ctx.fillStyle = '#6e8efb';
+            ctx.fillRect(0, player.y, paddleWidth, paddleHeight);
+            ctx.fillStyle = '#a777e3';
+            ctx.fillRect(canvas.width - paddleWidth, opponent.y, paddleWidth, paddleHeight);
+            ctx.font = `${ballSize * 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('🏐', ball.x + ballSize / 2, ball.y + ballSize / 2);
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.dx = (Math.random() > 0.5 ? 1 : -1) * (difficulty === 'easy' ? 2 : difficulty === 'medium' ? 3 : 4);
+            ball.dy = (Math.random() > 0.5 ? 1 : -1) * (difficulty === 'easy' ? 2 : difficulty === 'medium' ? 3 : 4);
+        }
+
+        // Suporte a teclado (para testes)
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowUp') isMovingUp = true;
+            if (event.key === 'ArrowDown') isMovingDown = true;
+        });
+        document.addEventListener('keyup', (event) => {
+            if (event.key === 'ArrowUp') isMovingUp = false;
+            if (event.key === 'ArrowDown') isMovingDown = false;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simon Says</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-in;
+            width: 100%;
+            max-width: 360px;
+            margin: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 80px);
+            gap: 5px;
+            margin: 10px auto;
+            width: 165px;
+            height: 165px;
+            background: #ccc;
+            padding: 3px;
+            border-radius: 8px;
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            background: #fff;
+            border-radius: 8px;
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s ease;
+        }
+        .cell:hover {
+            background: #e0e0e0;
+        }
+        .cell.active {
+            background: #aaa;
+        }
+        .hamburger {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -200px;
+            width: 200px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 10px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 10px;
+            text-decoration: none;
+            font-size: 1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 90%;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.3s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        #score {
+            margin: 10px 0;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 5px;
+        }
+        @media (min-width: 600px) {
+            .container {
+                padding: 20px;
+                max-width: 500px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            .grid {
+                grid-template-columns: repeat(2, 100px);
+                width: 210px;
+                height: 210px;
+            }
+            .cell {
+                width: 100px;
+                height: 100px;
+                font-size: 40px;
+            }
+            .modal-content {
+                width: 400px;
+                padding: 30px;
+            }
+            .modal-content h2 {
+                font-size: 2em;
+            }
+            .modal-content p {
+                font-size: 1.2em;
+            }
+            .modal-content button {
+                padding: 12px 25px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Simon Says 🎶</h1>
+        <div id="score">Rodada: 0</div>
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Simon Says</h2>
+            <p>Toque nas cores na ordem em que piscarem. Complete 10 rodadas para vencer!</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você completou 10 rodadas!</p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="loseModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loseModal')">×</span>
+            <h2>Game Over!</h2>
+            <p>Você errou a sequência. Tente novamente!</p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        let sequence = [];
+        let playerSequence = [];
+        let round = 0;
+        const grid = document.getElementById('grid');
+        const scoreDisplay = document.getElementById('score');
+        const colors = ['🔴', '🟢', '🔵', '🟡'];
+
+        document.getElementById('startModal').style.display = 'flex';
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        hamburger.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            grid.innerHTML = '';
+            sequence = [];
+            playerSequence = [];
+            round = 0;
+            scoreDisplay.textContent = `Rodada: ${round}`;
+            closeModal('winModal');
+            closeModal('loseModal');
+            openModal('startModal');
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            grid.innerHTML = '';
+            sequence = [];
+            playerSequence = [];
+            round = 0;
+            scoreDisplay.textContent = `Rodada: ${round}`;
+            for (let i = 0; i < 4; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.textContent = colors[i];
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => playerClick(i));
+                cell.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    playerClick(i);
+                });
+                grid.appendChild(cell);
+            }
+            nextRound();
+        }
+
+        function nextRound() {
+            round++;
+            scoreDisplay.textContent = `Rodada: ${round}`;
+            sequence.push(Math.floor(Math.random() * 4));
+            playerSequence = [];
+            playSequence();
+        }
+
+        function playSequence() {
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= sequence.length) {
+                    clearInterval(interval);
+                    return;
+                }
+                const cell = grid.children[sequence[i]];
+                cell.classList.add('active');
+                setTimeout(() => cell.classList.remove('active'), 500);
+                i++;
+            }, 1000);
+        }
+
+        function playerClick(index) {
+            playerSequence.push(index);
+            const cell = grid.children[index];
+            cell.classList.add('active');
+            setTimeout(() => cell.classList.remove('active'), 200);
+            if (playerSequence.length === sequence.length) {
+                if (playerSequence.every((val, i) => val === sequence[i])) {
+                    if (round >= 10) {
+                        openModal('winModal');
+                    } else {
+                        setTimeout(nextRound, 1000);
+                    }
+                } else {
+                    openModal('loseModal');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

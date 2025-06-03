@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobra</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 360px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #score {
+            font-size: 1.1em;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 5px;
+        }
+        #highScore {
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        #gameCanvas {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            height: 300px;
+            display: block;
+            margin: 0 auto;
+        }
+        .controls {
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left down right";
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+            width: 280px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .control-btn {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            backdrop-filter: blur(5px);
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .control-btn.up { grid-area: up; }
+        .control-btn.left { grid-area: left; }
+        .control-btn.right { grid-area: right; }
+        .control-btn.down { grid-area: down; }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover, .hamburger:active {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a, .sidebar select {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+            background: none;
+            border: 1px solid #fff;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar a:hover, .sidebar select:hover, .sidebar a:active, .sidebar select:active {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 20px;
+            max-width: 300px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 25px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:active {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 360px) {
+            .container {
+                padding: 15px;
+            }
+            #gameCanvas {
+                width: 240px;
+                height: 240px;
+            }
+            .controls {
+                width: 220px;
+            }
+            .control-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 1.5em;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            #score, #highScore {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <select id="difficulty" onchange="updateDifficulty()">
+            <option value="easy">Fácil</option>
+            <option value="medium">Médio</option>
+            <option value="hard">Difícil</option>
+        </select>
+        <a onclick="startGame()">🔄 Novo Jogo</a>
+        <a onclick="togglePause()">⏯️ Pausar/Continuar</a>
+    </div>
+
+    <div class="container">
+        <h1>Jogo da Cobra</h1>
+        <div id="score">Pontuação: 0</div>
+        <div id="highScore">Recorde: 0</div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+            <div class="control-btn up" ontouchstart="changeDirection('up')" ontouchend="preventDefault(event)">↑</div>
+            <div class="control-btn left" ontouchstart="changeDirection('left')" ontouchend="preventDefault(event)">←</div>
+            <div class="control-btn right" ontouchstart="changeDirection('right')" ontouchend="preventDefault(event)">→</div>
+            <div class="control-btn down" ontouchstart="changeDirection('down')" ontouchend="preventDefault(event)">↓</div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Jogo da Cobra</h2>
+            <p>Use os botões para mover a cobra 🐍 e comer os emojis! Evite bater nas bordas ou no próprio corpo.</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('gameOverModal')">×</span>
+            <h2>Game Over!</h2>
+            <p>Pontuação: <span id="finalScore"></span></p>
+            <p>Recorde: <span id="finalHighScore"></span></p>
+            <button onclick="startGame()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="pauseModal">
+        <div class="modal-content">
+            <span class="close" onclick="togglePause()">×</span>
+            <h2>Jogo Pausado</h2>
+            <p>Pressione "Continuar" para voltar.</p>
+            <button onclick="togglePause()">Continuar</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const isSmallScreen = window.innerWidth <= 360;
+        canvas.width = isSmallScreen ? 240 : 300;
+        canvas.height = isSmallScreen ? 240 : 300;
+        const tileSize = canvas.width / gridSize;
+        let snake = [{ x: 10, y: 10 }];
+        let food = { x: 15, y: 15, emoji: '🍎' };
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameLoopInterval = null;
+        let isPaused = false;
+        let difficulty = 'easy';
+        let speed = 100;
+        const emojis = ['🍎', '🍌', '🍇', '🍉', '🍓', '🍕', '🍔', '🌮'];
+
+        document.getElementById('highScore').textContent = `Recorde: ${highScore}`;
+        document.getElementById('startModal').style.display = 'flex';
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('touchstart', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function updateDifficulty() {
+            difficulty = document.getElementById('difficulty').value;
+            speed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 80 : 60;
+            if (gameLoopInterval && !isPaused) {
+                clearInterval(gameLoopInterval);
+                gameLoopInterval = setInterval(gameLoop, speed);
+            }
+        }
+
+        function preventDefault(e) {
+            e.preventDefault();
+        }
+
+        function changeDirection(direction) {
+            if (isPaused) return;
+            switch (direction) {
+                case 'up':
+                    if (dy !== 1) { dx = 0; dy = -1; }
+                    break;
+                case 'down':
+                    if (dy !== -1) { dx = 0; dy = 1; }
+                    break;
+                case 'left':
+                    if (dx !== 1) { dx = -1; dy = 0; }
+                    break;
+                case 'right':
+                    if (dx !== -1) { dx = 1; dy = 0; }
+                    break;
+            }
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            closeModal('gameOverModal');
+            snake = [{ x: 10, y: 10 }];
+            dx = dy = 0;
+            score = 0;
+            document.getElementById('score').textContent = `Pontuação: ${score}`;
+            generateFood();
+            if (gameLoopInterval) clearInterval(gameLoopInterval);
+            isPaused = false;
+            gameLoopInterval = setInterval(gameLoop, speed);
+        }
+
+        function togglePause() {
+            if (isPaused) {
+                closeModal('pauseModal');
+                isPaused = false;
+                gameLoopInterval = setInterval(gameLoop, speed);
+            } else {
+                openModal('pauseModal');
+                isPaused = true;
+                clearInterval(gameLoopInterval);
+            }
+            sidebar.classList.remove('open');
+        }
+
+        function gameLoop() {
+            // Atualizar posição da cobra
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            // Verificar se comeu a comida
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                document.getElementById('score').textContent = `Pontuação: ${score}`;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('snakeHighScore', highScore);
+                    document.getElementById('highScore').textContent = `Recorde: ${highScore}`;
+                }
+                generateFood();
+            } else {
+                snake.pop();
+            }
+
+            // Verificar colisão
+            if (head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+                clearInterval(gameLoopInterval);
+                document.getElementById('finalScore').textContent = score;
+                document.getElementById('finalHighScore').textContent = highScore;
+                openModal('gameOverModal');
+                return;
+            }
+
+            // Desenhar
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar a cobra (emoji 🐍)
+            snake.forEach((segment, index) => {
+                ctx.font = index === 0 ? `${tileSize * 1.5}px Arial` : `${tileSize * 1.2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (index === 0) {
+                    // Cabeça com fundo verde claro
+                    ctx.fillStyle = '#33cc33';
+                    ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+                }
+                ctx.fillStyle = '#000';
+                ctx.fillText('🐍', (segment.x + 0.5) * tileSize, (segment.y + 0.5) * tileSize);
+            });
+
+            // Desenhar a comida
+            ctx.font = `${tileSize * 1.2}px Arial`;
+            ctx.fillStyle = '#000';
+            ctx.fillText(food.emoji, (food.x + 0.5) * tileSize, (food.y + 0.5) * tileSize);
+        }
+
+        function generateFood() {
+            food.x = Math.floor(Math.random() * gridSize);
+            food.y = Math.floor(Math.random() * gridSize);
+            food.emoji = emojis[Math.floor(Math.random() * emojis.length)];
+            if (snake.some(segment => segment.x === food.x && segment.y === food.y)) {
+                generateFood();
+            }
+        }
+
+        // Suporte a teclado (para testes em desktop)
+        document.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 'ArrowUp': changeDirection('up'); break;
+                case 'ArrowDown': changeDirection('down'); break;
+                case 'ArrowLeft': changeDirection('left'); break;
+                case 'ArrowRight': changeDirection('right'); break;
+            }
+        });
+    </script>
+</body>
+</html>

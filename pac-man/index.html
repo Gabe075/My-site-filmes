@@ -1,0 +1,505 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pac-Man</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-in;
+            width: 100%;
+            max-width: 360px;
+            margin: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        canvas {
+            background: #000;
+            border-radius: 8px;
+            margin: 10px auto;
+            display: block;
+            width: 300px;
+            height: 300px;
+        }
+        .controls {
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 5px;
+            margin: 10px auto;
+            width: 150px;
+        }
+        .controls button {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            border: none;
+            border-radius: 8px;
+            background: #6e8efb;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            touch-action: none;
+        }
+        .controls button:hover {
+            background: #5a7de8;
+        }
+        .up { grid-area: up; }
+        .down { grid-area: down; }
+        .left { grid-area: left; }
+        .right { grid-area: right; }
+        .hamburger {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -200px;
+            width: 200px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 10px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 10px;
+            text-decoration: none;
+            font-size: 1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 90%;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.3s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        #score {
+            margin: 10px 0;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 5px;
+        }
+        @media (min-width: 600px) {
+            .container {
+                padding: 20px;
+                max-width: 500px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            canvas {
+                width: 400px;
+                height: 400px;
+            }
+            .controls {
+                width: 200px;
+            }
+            .controls button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            .modal-content {
+                width: 400px;
+                padding: 30px;
+            }
+            .modal-content h2 {
+                font-size: 2em;
+            }
+            .modal-content p {
+                font-size: 1.2em;
+            }
+            .modal-content button {
+                padding: 12px 25px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Pac-Man 👻</h1>
+        <div id="score">Pontuação: 0</div>
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+        <div class="controls">
+            <button class="up" onmousedown="setDirection(0, -1)" ontouchstart="setDirection(0, -1); event.preventDefault()">↑</button>
+            <button class="down" onmousedown="setDirection(0, 1)" ontouchstart="setDirection(0, 1); event.preventDefault()">↓</button>
+            <button class="left" onmousedown="setDirection(-1, 0)" ontouchstart="setDirection(-1, 0); event.preventDefault()">←</button>
+            <button class="right" onmousedown="setDirection(1, 0)" ontouchstart="setDirection(1, 0); event.preventDefault()">→</button>
+        </div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Pac-Man</h2>
+            <p>Use os botões para mover o Pac-Man 😺 e comer todos os pontos 🌟, evitando os fantasmas 👻!</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você comeu todos os pontos! Pontuação: <span id="finalScore"></span></p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="loseModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loseModal')">×</span>
+            <h2>Game Over!</h2>
+            <p>Você foi pego por um fantasma! Pontuação: <span id="loseScore"></span></p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const tileSize = 15;
+        let score = 0;
+        let pacman = { x: 1, y: 1, dx: 0, dy: 0, nextDx: 0, nextDy: 0 };
+        let ghosts = [{ x: 10, y: 10 }, { x: 12, y: 10 }];
+        let map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+            [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,0,1,1,1,1,1,0,1,1,0,1,1,0,1],
+            [1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+            [1,1,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+            [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1],
+            [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        let gameLoop;
+
+        document.getElementById('startModal').style.display = 'flex';
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        hamburger.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            clearInterval(gameLoop);
+            score = 0;
+            scoreDisplay.textContent = `Pontuação: ${score}`;
+            pacman = { x: 1, y: 1, dx: 0, dy: 0, nextDx: 0, nextDy: 0 };
+            ghosts = [{ x: 10, y: 10 }, { x: 12, y: 10 }];
+            map = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+                [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],
+                [1,0,1,0,1,1,0,1,1,1,1,1,0,1,1,0,1,1,0,1],
+                [1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+                [1,1,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,1,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+                [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+                [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1],
+                [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+                [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ];
+            closeModal('winModal');
+            closeModal('loseModal');
+            openModal('startModal');
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            score = 0;
+            scoreDisplay.textContent = `Pontuação: ${score}`;
+            document.addEventListener('keydown', handleInput);
+            gameLoop = setInterval(update, 150); // Ajustei para 150ms para jogabilidade mais suave
+        }
+
+        function handleInput(e) {
+            if (e.key === 'ArrowUp') setDirection(0, -1);
+            if (e.key === 'ArrowDown') setDirection(0, 1);
+            if (e.key === 'ArrowLeft') setDirection(-1, 0);
+            if (e.key === 'ArrowRight') setDirection(1, 0);
+        }
+
+        function setDirection(dx, dy) {
+            pacman.nextDx = dx;
+            pacman.nextDy = dy;
+        }
+
+        function update() {
+            // Atualizar direção do Pac-Man
+            const newX = pacman.x + pacman.nextDx;
+            const newY = pacman.y + pacman.nextDy;
+            if (map[newY] && map[newY][newX] !== 1) {
+                pacman.x = newX;
+                pacman.y = newY;
+                pacman.dx = pacman.nextDx;
+                pacman.dy = pacman.nextDy;
+            } else {
+                // Tentar direção atual
+                const currX = pacman.x + pacman.dx;
+                const currY = pacman.y + pacman.dy;
+                if (map[currY] && map[currY][currX] !== 1) {
+                    pacman.x = currX;
+                    pacman.y = currY;
+                } else {
+                    pacman.dx = 0;
+                    pacman.dy = 0;
+                }
+            }
+
+            // Coletar pontos
+            if (map[pacman.y][pacman.x] === 0) {
+                map[pacman.y][pacman.x] = 2;
+                score += 10;
+                scoreDisplay.textContent = `Pontuação: ${score}`;
+            }
+
+            // Atualizar fantasmas com IA
+            ghosts.forEach(ghost => {
+                const pursue = Math.random() < 0.7; // 70% de chance de perseguir
+                let dx, dy;
+                if (pursue) {
+                    // Perseguir Pac-Man
+                    dx = pacman.x > ghost.x ? 1 : pacman.x < ghost.x ? -1 : 0;
+                    dy = pacman.y > ghost.y ? 1 : pacman.y < ghost.y ? -1 : 0;
+                    // Priorizar movimento na direção com maior distância
+                    if (Math.abs(pacman.x - ghost.x) > Math.abs(pacman.y - ghost.y)) {
+                        dy = 0;
+                    } else {
+                        dx = 0;
+                    }
+                } else {
+                    // Movimento aleatório
+                    const directions = [[0,1],[0,-1],[1,0],[-1,0]];
+                    const randomDir = directions[Math.floor(Math.random() * 4)];
+                    [dx, dy] = randomDir;
+                }
+                const newGX = ghost.x + dx;
+                const newGY = ghost.y + dy;
+                if (map[newGY] && map[newGY][newGX] !== 1) {
+                    ghost.x = newGX;
+                    ghost.y = newGY;
+                }
+            });
+
+            // Verificar colisão com fantasmas
+            if (ghosts.some(ghost => ghost.x === pacman.x && ghost.y === pacman.y)) {
+                clearInterval(gameLoop);
+                document.getElementById('loseScore').textContent = score;
+                openModal('loseModal');
+            }
+
+            // Verificar vitória
+            if (!map.flat().includes(0)) {
+                clearInterval(gameLoop);
+                document.getElementById('finalScore').textContent = score;
+                openModal('winModal');
+            }
+
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '15px Arial';
+            for (let y = 0; y < map.length; y++) {
+                for (let x = 0; x < map[0].length; x++) {
+                    if (map[y][x] === 1) ctx.fillText('⬛', x * tileSize, (y + 1) * tileSize);
+                    if (map[y][x] === 0) ctx.fillText('🌟', x * tileSize, (y + 1) * tileSize);
+                }
+            }
+            ctx.fillText('😺', pacman.x * tileSize, (pacman.y + 1) * tileSize);
+            ghosts.forEach(ghost => ctx.fillText('👻', ghost.x * tileSize, (ghost.y + 1) * tileSize));
+        }
+    </script>
+</body>
+</html>

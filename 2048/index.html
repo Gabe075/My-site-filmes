@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo 2048 - Animado</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 500px; 
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .score-container, .highscore-container {
+            background: rgba(0,0,0,0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+        .score-container span, .highscore-container span {
+            display: block;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        #game-board-container { 
+            position: relative;
+            width: calc(100% - 20px); 
+            max-width: 400px; 
+            aspect-ratio: 1 / 1; 
+            margin: 0 auto; 
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+            width: 100%; 
+            height: 100%;
+            position: relative; 
+            touch-action: none; 
+        }
+        .grid-cell { 
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        .tile {
+            position: absolute; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: top 0.1s ease-out, left 0.1s ease-out, transform 0.1s ease-out, background-color 0.1s ease-out;
+            /* A opacidade será controlada por classes de animação */
+        }
+        /* Cores das Peças (Tiles) */
+        .tile[data-value="2"] { background-color: #eee4da; color: #776e65; }
+        .tile[data-value="4"] { background-color: #ede0c8; color: #776e65; }
+        .tile[data-value="8"] { background-color: #f2b179; color: #f9f6f2; }
+        .tile[data-value="16"] { background-color: #f59563; color: #f9f6f2; }
+        .tile[data-value="32"] { background-color: #f67c5f; color: #f9f6f2; }
+        .tile[data-value="64"] { background-color: #f65e3b; color: #f9f6f2; }
+        .tile[data-value="128"] { background-color: #edcf72; color: #f9f6f2; font-size: 0.8em; }
+        .tile[data-value="256"] { background-color: #edcc61; color: #f9f6f2; font-size: 0.8em; }
+        .tile[data-value="512"] { background-color: #edc850; color: #f9f6f2; font-size: 0.8em; }
+        .tile[data-value="1024"] { background-color: #edc53f; color: #f9f6f2; font-size: 0.7em; }
+        .tile[data-value="2048"] { background-color: #edc22e; color: #f9f6f2; font-size: 0.7em; }
+        
+        .tile-new { /* Animação para peças novas que aparecem */
+            animation: newTileSpawn 0.2s ease-out;
+        }
+        @keyframes newTileSpawn {
+            from { transform: scale(0.5); opacity: 0.5; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .tile-merged { /* Animação para peças que são resultado de um merge */
+            animation: mergedTilePulse 0.2s ease-out;
+            z-index: 10; 
+        }
+        @keyframes mergedTilePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Estilos do menu lateral, modais e overlay (mantidos da versão anterior) */
+        .hamburger, .sidebar, .sidebar.open, .sidebar a, .sidebar a:hover,
+        .modal, .modal-content, .game-overlay, .game-overlay.show,
+        .modal-content h2, .modal-content p, .modal-content button, .close,
+        .game-overlay h2, .game-overlay p, .game-overlay button {
+            /* ... (Cole os estilos correspondentes da sua versão anterior aqui) ... */
+        }
+        /* Copiando os estilos que faltavam */
+        .hamburger { position: fixed; top: 20px; left: 20px; font-size: 30px; cursor: pointer; z-index: 2000; color: #fff; transition: transform 0.3s; }
+        .hamburger:hover { transform: rotate(90deg); }
+        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: #2c3e50; color: #fff; transition: left 0.3s ease-in-out; z-index: 2000; padding: 20px; display: flex; flex-direction: column; }
+        .sidebar.open { left: 0; }
+        .sidebar a { display: block; color: #fff; padding: 15px; text-decoration: none; font-size: 1.1em; border-radius: 5px; margin: 5px 0; transition: background 0.2s; cursor: pointer; background: none; border: none; text-align: left; width: 100%; }
+        .sidebar a:hover { background: #34495e; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.3); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transform: scale(0.5); animation: popIn 0.5s ease-out forwards; color: #fff; }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-content h2 { font-size: 2em; margin-bottom: 15px; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+        .modal-content p { font-size: 1.2em; margin-bottom: 20px; }
+        .modal-content .final-score-text { margin-bottom: 10px; }
+        .modal-content .new-highscore-text { font-size: 1.1em; color: #facc15; margin-bottom: 20px; font-weight: bold; }
+        .modal-content button { padding: 12px 25px; border: none; border-radius: 50px; background: linear-gradient(135deg, #6e8efb, #a777e3); color: #fff; cursor: pointer; font-size: 1em; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); margin: 5px; }
+        .modal-content button:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
+        .close { position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); transition: transform 0.2s; }
+        .close:hover { transform: rotate(90deg); }
+        .game-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; border-radius: 10px; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .game-overlay.show { display: flex; opacity: 1; }
+        .game-overlay h2 { font-size: 2.5em; margin-bottom: 10px; color: #FFEB3B; }
+        .game-overlay p { font-size: 1.2em; margin-bottom: 20px; }
+        .game-overlay button { padding: 10px 20px; font-size: 1em; border: none; border-radius: 25px; background: linear-gradient(135deg, #6e8efb, #a777e3); color: #fff; cursor: pointer; transition: transform 0.2s; }
+        .game-overlay button:hover { transform: scale(1.05); }
+
+
+        @media (max-width: 500px) {
+            .container { padding: 15px; }
+            h1 { font-size: 1.8em; }
+            .score-container, .highscore-container { font-size: 1em; padding: 6px 10px;}
+            .score-container span, .highscore-container span { font-size: 1.1em;}
+            #game-board { gap: 8px; padding: 8px; }
+            .game-overlay h2 { font-size: 2em; }
+            .game-overlay p { font-size: 1em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Jogo 2048</h1>
+        <div class="game-header">
+            <div class="score-container">Pontuação<span id="score">0</span></div>
+            <div class="highscore-container">Recorde<span id="high-score">0</span></div>
+        </div>
+        <div id="game-board-container"> 
+            <div id="game-board"></div>
+            <div class="game-overlay" id="game-overlay">
+                <h2 id="overlay-title"></h2>
+                <p id="overlay-text"></p>
+                <button onclick="resetAndShowStartModal()">Tentar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal'); initializeGameIfNeeded();">×</span>
+            <h2>Bem-vindo ao 2048!</h2>
+            <p>Use as setas (ou deslize na tela) para mover as peças. Combine peças iguais para somar pontos e tente alcançar 2048!</p>
+            <button onclick="closeModal('startModal'); initializeGameIfNeeded();">Começar a Jogar!</button>
+        </div>
+    </div>
+
+    <script>
+        const gameBoardElement = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const highScoreDisplay = document.getElementById('high-score');
+        const startModal = document.getElementById('startModal');
+        const gameOverlay = document.getElementById('game-overlay');
+        const overlayTitle = document.getElementById('overlay-title');
+        const overlayText = document.getElementById('overlay-text');
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+
+        const GRID_SIZE = 4;
+        let board = []; 
+        let score = 0;
+        let highScore = 0;
+        let gameActive = false;
+        // tilesOnBoard será um array de objetos para rastrear as peças e suas animações
+        let tilesOnBoard = []; 
+
+        let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+        const SWIPE_THRESHOLD = 30; 
+
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function initializeGameIfNeeded() {
+            if (!gameActive && !gameOverlay.classList.contains('show')) { 
+                initializeGame();
+            }
+        }
+
+        function resetAndShowStartModal() {
+            closeModal('startModal'); 
+            gameOverlay.classList.remove('show'); 
+            gameActive = false; 
+            initializeGame(); 
+        }
+
+        function initializeGame() {
+            if (gameActive && !gameOverlay.classList.contains('show') && !confirm("Tem certeza que quer reiniciar o jogo?")) {
+                return; 
+            }
+            board = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+            score = 0;
+            gameActive = true;
+            tilesOnBoard = []; // Limpa as peças rastreadas
+            gameOverlay.classList.remove('show');
+            
+            updateScoreDisplay();
+            loadHighScore();
+            
+            gameBoardElement.innerHTML = ''; 
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    gameBoardElement.appendChild(cell);
+                }
+            }
+            
+            addRandomTile();
+            addRandomTile();
+            // drawBoard() é chamado por addRandomTile
+        }
+
+        function getCellSizeAndGap() {
+            const boardRect = gameBoardElement.getBoundingClientRect();
+            const gap = 10; 
+            const cellSize = (boardRect.width - (GRID_SIZE + 1) * gap) / GRID_SIZE;
+            return { cellSize, gap };
+        }
+
+        function drawBoard() {
+            const { cellSize, gap } = getCellSizeAndGap();
+            
+            // Remove todos os elementos .tile existentes do DOM
+            gameBoardElement.querySelectorAll('.tile').forEach(tileEl => tileEl.remove());
+            tilesOnBoard = []; // Limpa o array de rastreamento
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] !== 0) {
+                        const value = board[r][c];
+                        const tileElement = document.createElement('div');
+                        tileElement.classList.add('tile');
+                        tileElement.dataset.value = value;
+                        tileElement.textContent = value;
+                        
+                        tileElement.style.width = `${cellSize}px`;
+                        tileElement.style.height = `${cellSize}px`;
+                        tileElement.style.left = `${c * (cellSize + gap) + gap}px`;
+                        tileElement.style.top = `${r * (cellSize + gap) + gap}px`;
+                        
+                        const fontSizeBase = cellSize * 0.4;
+                        if (value >= 1024) tileElement.style.fontSize = `${fontSizeBase * 0.6}px`;
+                        else if (value >= 128) tileElement.style.fontSize = `${fontSizeBase * 0.7}px`;
+                        else if (value >= 8) tileElement.style.fontSize = `${fontSizeBase * 0.9}px`;
+                        else tileElement.style.fontSize = `${fontSizeBase}px`;
+
+                        gameBoardElement.appendChild(tileElement);
+                        tilesOnBoard.push({ element: tileElement, r, c, value, isNew: false, isMerged: false });
+                    }
+                }
+            }
+        }
+        
+        function addRandomTile(isInitial = false) {
+            let emptyCells = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] === 0) {
+                        emptyCells.push({r, c});
+                    }
+                }
+            }
+            if (emptyCells.length > 0) {
+                const {r, c} = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const value = Math.random() < 0.9 ? 2 : 4;
+                board[r][c] = value;
+
+                // Se for uma chamada não inicial (após um movimento), redesenha o tabuleiro
+                // e depois aplica a animação de "novo" à peça específica.
+                if (!isInitial) {
+                    drawBoard(); // Redesenha tudo
+                    const newTileData = tilesOnBoard.find(t => t.r === r && t.c === c && t.value === value);
+                    if (newTileData) {
+                        newTileData.element.classList.add('tile-new');
+                        newTileData.element.addEventListener('animationend', () => {
+                            newTileData.element.classList.remove('tile-new');
+                        }, { once: true });
+                    }
+                } else {
+                    drawBoard(); // Para as peças iniciais, apenas desenha.
+                }
+            }
+        }
+        
+        function move(direction) {
+            if (!gameActive) return;
+            let boardBeforeMove = board.map(row => [...row]);
+            let moved = false;
+            let mergedTilesPositions = []; // Armazena {r, c} das peças que foram resultado de um merge
+
+            const processLine = (line, lineIndex, isRow) => {
+                let originalLine = [...line]; // Cópia para comparar se houve movimento
+                let newLine = line.filter(val => val !== 0);
+                
+                for (let i = 0; i < newLine.length - 1; i++) {
+                    if (newLine[i] === newLine[i+1]) {
+                        const mergedValue = newLine[i] * 2;
+                        score += mergedValue;
+                        newLine[i] = mergedValue;
+                        newLine.splice(i + 1, 1);
+                        // Marcar a posição da peça que foi merged
+                        if(isRow) mergedTilesPositions.push({r: lineIndex, c: i});
+                        else mergedTilesPositions.push({r: i, c: lineIndex});
+                        moved = true; // Um merge conta como movimento
+                    }
+                }
+                
+                let resultLine = Array(GRID_SIZE).fill(0);
+                for(let i=0; i < newLine.length; i++) {
+                    resultLine[i] = newLine[i];
+                }
+
+                // Verifica se a linha mudou (além de merges)
+                if (!moved && !originalLine.every((val, index) => val === resultLine[index])) {
+                    moved = true;
+                }
+                return resultLine;
+            };
+
+            if (direction === 'left' || direction === 'right') {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    let row = [...board[r]];
+                    if (direction === 'right') row.reverse();
+                    const processedRow = processLine(row, r, true);
+                    if (direction === 'right') processedRow.reverse();
+                    board[r] = processedRow;
+                }
+            } else if (direction === 'up' || direction === 'down') {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let col = [];
+                    for (let r = 0; r < GRID_SIZE; r++) col.push(board[r][c]);
+                    if (direction === 'down') col.reverse();
+                    const processedCol = processLine(col, c, false);
+                    if (direction === 'down') processedCol.reverse();
+                    for (let r = 0; r < GRID_SIZE; r++) board[r][c] = processedCol[r];
+                }
+            }
+            
+            // Verifica se o tabuleiro realmente mudou (além dos merges já detectados)
+            if (!moved) {
+                for(let r=0; r<GRID_SIZE; r++){
+                    for(let c=0; c<GRID_SIZE; c++){
+                        if(boardBeforeMove[r][c] !== board[r][c]){
+                            moved = true;
+                            break;
+                        }
+                    }
+                    if(moved) break;
+                }
+            }
+
+
+            if (moved) {
+                drawBoard(); // Redesenha o tabuleiro com as novas posições
+                // Aplica animação de merge às peças corretas
+                mergedTilesPositions.forEach(pos => {
+                    const tileData = tilesOnBoard.find(t => t.r === pos.r && t.c === pos.c);
+                    if (tileData) {
+                        tileData.element.classList.add('tile-merged');
+                        tileData.element.addEventListener('animationend', () => {
+                            tileData.element.classList.remove('tile-merged');
+                        }, { once: true });
+                    }
+                });
+
+                setTimeout(() => { // Adiciona nova peça após um pequeno delay
+                    addRandomTile(); 
+                    updateScoreDisplay();
+                    checkGameStatus();
+                }, 100); // Delay para animações de movimento/merge
+            }
+        }
+        
+        function checkGameStatus() {
+            let win = false;
+            let canMove = false; 
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] === 2048 && !gameOverlay.classList.contains('show')) win = true; // Ganha apenas uma vez
+                    if (board[r][c] === 0) canMove = true; 
+                    if (c < GRID_SIZE - 1 && board[r][c] !== 0 && board[r][c] === board[r][c+1]) canMove = true;
+                    if (r < GRID_SIZE - 1 && board[r][c] !== 0 && board[r][c] === board[r+1][c]) canMove = true;
+                }
+            }
+
+            if (win) { 
+                gameActive = false; 
+                overlayTitle.textContent = "Você Venceu!";
+                overlayText.textContent = "Você alcançou 2048! Continue jogando ou comece um novo jogo.";
+                gameOverlay.classList.add('show');
+                updateHighScore();
+            } else if (!canMove) { 
+                gameActive = false;
+                overlayTitle.textContent = "Fim de Jogo!";
+                overlayText.textContent = "Não há mais movimentos possíveis.";
+                gameOverlay.classList.add('show');
+                updateHighScore();
+            }
+        }
+        function updateScoreDisplay() { scoreDisplay.textContent = score; }
+        function loadHighScore() {
+            const savedHighScore = localStorage.getItem('2048HighScore_Gabe075_v3_anim'); // Nova chave
+            highScore = savedHighScore ? parseInt(savedHighScore, 10) : 0;
+            highScoreDisplay.textContent = highScore;
+        }
+        function saveHighScore() {
+            localStorage.setItem('2048HighScore_Gabe075_v3_anim', highScore.toString());
+        }
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                saveHighScore();
+                highScoreDisplay.textContent = highScore;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive && !gameOverlay.classList.contains('show')) return;
+            if (gameOverlay.classList.contains('show') && e.key === "Enter") {
+                 resetAndShowStartModal();
+                 return;
+            }
+            if(!gameActive && gameOverlay.classList.contains('show')) return; // Se overlay está visível e não é enter, não faz nada
+            if(!gameActive) return; // Se jogo não está ativo (ex: ganhou e pode continuar)
+
+            let keyProcessed = false;
+            switch (e.key) {
+                case 'ArrowUp': move('up'); keyProcessed = true; break;
+                case 'ArrowDown': move('down'); keyProcessed = true; break;
+                case 'ArrowLeft': move('left'); keyProcessed = true; break;
+                case 'ArrowRight': move('right'); keyProcessed = true; break;
+            }
+            if (keyProcessed) e.preventDefault(); 
+        });
+
+        gameBoardElement.addEventListener('touchstart', (e) => {
+            if (!gameActive) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault(); 
+        }, { passive: false });
+
+        gameBoardElement.addEventListener('touchmove', (e) => {
+            if (!gameActive) return;
+            e.preventDefault(); 
+        }, { passive: false });
+
+        gameBoardElement.addEventListener('touchend', (e) => {
+            if (!gameActive) return;
+            touchEndX = e.changedTouches[0].clientX;
+            touchEndY = e.changedTouches[0].clientY;
+            handleSwipe();
+            e.preventDefault();
+        });
+
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > SWIPE_THRESHOLD || Math.abs(deltaY) > SWIPE_THRESHOLD) {
+                if (Math.abs(deltaX) > Math.abs(deltaY)) { 
+                    move(deltaX > 0 ? 'right' : 'left');
+                } else { 
+                    move(deltaY > 0 ? 'down' : 'up');
+                }
+            }
+        }
+        
+        window.addEventListener('resize', () => {
+            if (!gameActive || gameOverlay.classList.contains('show')) {
+                 resetAndShowStartModal();
+            } else {
+                drawBoard(); 
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            openModal('startModal'); 
+        });
+
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palavras Cruzadas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 600px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #crossword-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 40px);
+            gap: 1px;
+            background: #000;
+            margin: 20px auto;
+            width: 320px; /* 8x40px + 7x1px */
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            position: relative;
+            color: #000; /* Tema claro por padrão */
+        }
+        .cell.dark-theme {
+            color: #fff; /* Tema escuro */
+        }
+        .cell.selected {
+            border: 2px solid #a777e3;
+        }
+        .cell.black {
+            background: #2c3e50;
+        }
+        .cell-number {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 0.8em;
+            color: #000;
+            font-weight: bold;
+        }
+        #hints {
+            margin-top: 20px;
+        }
+        #hints h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        #hints ul {
+            list-style: none;
+            text-align: left;
+        }
+        #hints li {
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+        #keyboard {
+            display: grid;
+            grid-template-columns: repeat(8, 40px); /* Ajustado para incluir Backspace */
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .key {
+            width: 40px;
+            height: 40px;
+            background: #e0e0e0;
+            color: #000;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s ease;
+        }
+        .key:hover {
+            background: #d0d0d0;
+        }
+        .key.disabled {
+            background: #a0a0a0;
+            color: #444;
+            cursor: not-allowed;
+        }
+        .key.dark-theme {
+            color: #fff;
+        }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 15px;
+            }
+            #crossword-grid {
+                grid-template-columns: repeat(8, 30px);
+                width: 242px; /* 8x30px + 7x1px */
+            }
+            .cell {
+                width: 30px;
+                height: 30px;
+                font-size: 1em;
+            }
+            .cell-number {
+                font-size: 0.6em;
+            }
+            #keyboard {
+                grid-template-columns: repeat(8, 30px);
+            }
+            .key {
+                width: 30px;
+                height: 30px;
+                font-size: 1em;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Palavras Cruzadas</h1>
+        <div id="crossword-grid"></div>
+        <div id="keyboard"></div>
+        <div id="hints">
+            <h2>Dicas</h2>
+            <ul id="hints-list"></ul>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Palavras Cruzadas</h2>
+            <p>Preencha a grade com base nas dicas! Clique em um quadrado e use o teclado para inserir letras.</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você completou as palavras cruzadas!</p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        const wordsList = {
+            easy: [
+                { word: "sol", hint: "Estrela que ilumina a Terra" },
+                { word: "lua", hint: "Corpo celeste visível à noite" },
+                { word: "rio", hint: "Curso de água que deságua no mar" },
+                { word: "flor", hint: "Parte colorida de uma planta" },
+                { word: "casa", hint: "Lugar onde as pessoas moram" },
+                { word: "gato", hint: "Animal doméstico que mia" },
+                { word: "cao", hint: "Melhor amigo do homem" },
+                { word: "bola", hint: "Objeto redondo usado em jogos" },
+                { word: "mesa", hint: "Móvel usado para refeições" },
+                { word: "livro", hint: "Objeto com páginas para leitura" },
+                { word: "carro", hint: "Veículo com quatro rodas" },
+                { word: "peixe", hint: "Animal que vive na água" },
+                { word: "pato", hint: "Ave que nada e grasna" },
+                { word: "leao", hint: "Rei da selva" },
+                { word: "maca", hint: "Fruta vermelha ou verde" },
+                { word: "uva", hint: "Fruta pequena que cresce em cachos" },
+                { word: "agua", hint: "Líquido essencial para a vida" },
+                { word: "fogo", hint: "Elemento que queima" },
+                { word: "vento", hint: "Movimento do ar" },
+                { word: "chuva", hint: "Água que cai do céu" },
+                { word: "nuvem", hint: "Formação branca no céu" },
+                { word: "praia", hint: "Lugar com areia e mar" },
+                { word: "lago", hint: "Grande corpo de água cercado por terra" },
+                { word: "sapato", hint: "Calçado para os pés" },
+                { word: "camisa", hint: "Peça de roupa para o tronco" },
+                { word: "calca", hint: "Peça de roupa para as pernas" },
+                { word: "boneca", hint: "Brinquedo em forma de pessoa" },
+                { word: "pipoca", hint: "Lanche feito de milho" },
+                { word: "ovo", hint: "Alimento que vem da galinha" },
+                { word: "leite", hint: "Bebida branca produzida por vacas" },
+                { word: "sol", hint: "Fonte de luz do dia" },
+                { word: "ceu", hint: "Parte azul acima de nós" },
+                { word: "mar", hint: "Grande corpo de água salgada" },
+                { word: "dia", hint: "Período de luz solar" },
+                { word: "noite", hint: "Período de escuridão" },
+                { word: "lua", hint: "Ilumina o céu à noite" },
+                { word: "rio", hint: "Corre pela terra até o mar" },
+                { word: "flor", hint: "Enfeite natural das plantas" },
+                { word: "gato", hint: "Felino que gosta de caçar ratos" },
+                { word: "cao", hint: "Animal que late" },
+                { word: "bola", hint: "Brinquedo para chutar" },
+                { word: "mesa", hint: "Onde fazemos refeições" },
+                { word: "livro", hint: "Fonte de histórias e conhecimento" },
+                { word: "carro", hint: "Meio de transporte comum" },
+                { word: "peixe", hint: "Nada em rios e oceanos" },
+                { word: "pato", hint: "Ave que adora nadar" },
+                { word: "leao", hint: "Felino conhecido como rei" },
+                { word: "maca", hint: "Fruta que pode ser vermelha" },
+                { word: "uva", hint: "Fruta que cresce em grupo" },
+                { word: "agua", hint: "Bebemos para nos hidratar" },
+                { word: "fogo", hint: "Usado para cozinhar e aquecer" },
+                { word: "vento", hint: "Faz as folhas das árvores mexerem" },
+                { word: "chuva", hint: "Molha a terra e as plantas" },
+                { word: "nuvem", hint: "Flutua no céu e pode trazer chuva" },
+                { word: "praia", hint: "Lugar para relaxar perto do mar" },
+                { word: "lago", hint: "Água cercada por terra" },
+                { word: "sapato", hint: "Protege os pés ao caminhar" },
+                { word: "camisa", hint: "Roupa usada no tronco" },
+                { word: "calca", hint: "Cobre as pernas" },
+                { word: "boneca", hint: "Brinquedo que imita uma pessoa" },
+                { word: "pipoca", hint: "Estoura ao ser aquecida" },
+                { word: "ovo", hint: "Galinhas botam isso" },
+                { word: "leite", hint: "Bebida que vem das vacas" },
+                { word: "pao", hint: "Alimento feito de farinha" },
+                { word: "sal", hint: "Tempero branco e salgado" },
+                { word: "mel", hint: "Doce feito por abelhas" },
+                { word: "rei", hint: "Governante de um reino" },
+                { word: "bem", hint: "Oposto de mal" },
+                { word: "mal", hint: "Oposto de bem" }
+            ],
+            medium: [
+                { word: "arvore", hint: "Planta alta com tronco e folhas" },
+                { word: "cadeira", hint: "Móvel para sentar" },
+                { word: "aviao", hint: "Veículo que voa no céu" },
+                { word: "tigre", hint: "Felino com listras" },
+                { word: "banana", hint: "Fruta amarela e doce" },
+                { word: "laranja", hint: "Fruta cítrica de cor laranja" },
+                { word: "terra", hint: "Planeta onde vivemos" },
+                { word: "estrela", hint: "Ponto brilhante no céu noturno" },
+                { word: "montanha", hint: "Elevação alta na paisagem" },
+                { word: "floresta", hint: "Área cheia de árvores" },
+                { word: "carrinho", hint: "Brinquedo com rodas" },
+                { word: "chocolate", hint: "Doce feito de cacau" },
+                { word: "sorvete", hint: "Sobremesa gelada" },
+                { word: "pizza", hint: "Comida italiana com massa e queijo" },
+                { word: "batata", hint: "Legume usado em fritas" },
+                { word: "tomate", hint: "Fruta vermelha usada em saladas" },
+                { word: "cenoura", hint: "Legume laranja e crocante" },
+                { word: "cebola", hint: "Legume que faz chorar" },
+                { word: "escola", hint: "Lugar onde se aprende" },
+                { word: "aluno", hint: "Quem estuda na escola" },
+                { word: "caderno", hint: "Usado para escrever anotações" },
+                { word: "lapis", hint: "Instrumento para escrever ou desenhar" },
+                { word: "caneta", hint: "Escreve com tinta" },
+                { word: "borracha", hint: "Apaga erros de lápis" },
+                { word: "tesoura", hint: "Usada para cortar papel" },
+                { word: "cola", hint: "Adesivo para papel" },
+                { word: "mochila", hint: "Usada para carregar material escolar" },
+                { word: "janela", hint: "Abertura na parede para luz e ar" },
+                { word: "porta", hint: "Entrada ou saída de um cômodo" },
+                { word: "parede", hint: "Estrutura que divide cômodos" },
+                { word: "telhado", hint: "Parte superior que cobre a casa" },
+                { word: "cozinha", hint: "Lugar onde se prepara comida" },
+                { word: "sala", hint: "Espaço para relaxar em casa" },
+                { word: "quarto", hint: "Lugar para dormir" },
+                { word: "banheiro", hint: "Espaço para banho e higiene" },
+                { word: "jardim", hint: "Área com plantas e flores" },
+                { word: "bicicleta", hint: "Veículo de duas rodas movido a pedal" },
+                { word: "onibus", hint: "Transporte público grande" },
+                { word: "trem", hint: "Veículo que anda sobre trilhos" },
+                { word: "navio", hint: "Embarcação grande para o mar" },
+                { word: "barco", hint: "Embarcação pequena para rios ou lagos" },
+                { word: "passaro", hint: "Animal que voa e canta" },
+                { word: "cobra", hint: "Réptil longo e rastejante" },
+                { word: "macaco", hint: "Animal que vive em árvores" },
+                { word: "elefante", hint: "Maior animal terrestre" },
+                { word: "girafa", hint: "Animal com pescoço longo" },
+                { word: "zebra", hint: "Animal com listras pretas e brancas" },
+                { word: "cavalo", hint: "Animal usado para montar" },
+                { word: "vaca", hint: "Animal que produz leite" },
+                { word: "galinha", hint: "Ave que bota ovos" },
+                { word: "porco", hint: "Animal criado para carne" },
+                { word: "ovelha", hint: "Animal que dá lã" },
+                { word: "pombo", hint: "Ave comum nas cidades" },
+                { word: "aguia", hint: "Ave de rapina com visão aguçada" },
+                { word: "papagaio", hint: "Ave colorida que fala" },
+                { word: "morango", hint: "Fruta vermelha com sementes pequenas" },
+                { word: "abacaxi", hint: "Fruta tropical com casca espinhosa" },
+                { word: "manga", hint: "Fruta doce e suculenta" },
+                { word: "goiaba", hint: "Fruta tropical com sementes comestíveis" },
+                { word: "limao", hint: "Fruta cítrica e ácida" },
+                { word: "coco", hint: "Fruta com água dentro" },
+                { word: "melancia", hint: "Fruta grande com polpa vermelha" },
+                { word: "melao", hint: "Fruta doce com polpa alaranjada" },
+                { word: "pera", hint: "Fruta macia e suculenta" },
+                { word: "kiwi", hint: "Fruta pequena com interior verde" },
+                { word: "framboesa", hint: "Fruta vermelha pequena e delicada" },
+                { word: "amora", hint: "Fruta roxa e doce" }
+            ],
+            hard: [
+                { word: "hamburguer", hint: "Sanduíche com carne e pão" },
+                { word: "professor", hint: "Pessoa que ensina" },
+                { word: "computador", hint: "Máquina usada para trabalhar e jogar" },
+                { word: "televisao", hint: "Aparelho para assistir programas" },
+                { word: "telefone", hint: "Dispositivo para fazer chamadas" },
+                { word: "geladeira", hint: "Eletrodoméstico que conserva alimentos" },
+                { word: "microondas", hint: "Aparelho para aquecer comida rápido" },
+                { word: "ventilador", hint: "Eletrodoméstico que refresca o ar" },
+                { word: "arcondicionado", hint: "Aparelho que esfria o ambiente" },
+                { word: "lavadora", hint: "Máquina que lava roupas" },
+                { word: "aspirador", hint: "Aparelho para limpar o chão" },
+                { word: "liquidificador", hint: "Eletrodoméstico para fazer sucos" },
+                { word: "fogao", hint: "Usado para cozinhar alimentos" },
+                { word: "forno", hint: "Usado para assar bolos e pães" },
+                { word: "panela", hint: "Utensílio para cozinhar no fogão" },
+                { word: "prato", hint: "Usado para servir comida" },
+                { word: "copo", hint: "Usado para beber líquidos" },
+                { word: "colher", hint: "Utensílio para comer sopa" },
+                { word: "garfo", hint: "Utensílio para comer macarrão" },
+                { word: "faca", hint: "Utensílio para cortar alimentos" },
+                { word: "sofa", hint: "Móvel para sentar na sala" },
+                { word: "cama", hint: "Móvel para dormir" },
+                { word: "armario", hint: "Móvel para guardar roupas" },
+                { word: "estante", hint: "Móvel para guardar livros" },
+                { word: "espelho", hint: "Objeto para ver o reflexo" },
+                { word: "chuveiro", hint: "Usado para tomar banho" },
+                { word: "piscina", hint: "Estrutura para nadar em casa" },
+                { word: "hospital", hint: "Lugar para tratar doentes" },
+                { word: "farmacia", hint: "Lugar para comprar remédios" },
+                { word: "supermercado", hint: "Lugar para comprar comida" },
+                { word: "padaria", hint: "Lugar para comprar pão" },
+                { word: "restaurante", hint: "Lugar para comer fora" },
+                { word: "cinema", hint: "Lugar para assistir filmes" },
+                { word: "teatro", hint: "Lugar para assistir peças" },
+                { word: "estadio", hint: "Lugar para assistir jogos" },
+                { word: "parque", hint: "Área verde para lazer" },
+                { word: "zoologico", hint: "Lugar para ver animais" },
+                { word: "aquario", hint: "Lugar para ver peixes" },
+                { word: "museu", hint: "Lugar para ver exposições" },
+                { word: "biblioteca", hint: "Lugar para ler e estudar" },
+                { word: "igreja", hint: "Lugar de culto religioso" },
+                { word: "templo", hint: "Lugar sagrado para orações" },
+                { word: "mercado", hint: "Lugar para comprar produtos frescos" },
+                { word: "feira", hint: "Venda de frutas e legumes ao ar livre" },
+                { word: "loja", hint: "Lugar para comprar roupas ou objetos" },
+                { word: "banco", hint: "Lugar para guardar dinheiro" },
+                { word: "correio", hint: "Lugar para enviar cartas" },
+                { word: "estacao", hint: "Lugar para pegar trens ou ônibus" },
+                { word: "aeroporto", hint: "Lugar para pegar aviões" },
+                { word: "porto", hint: "Lugar para embarque de navios" },
+                { word: "estrada", hint: "Caminho para carros" },
+                { word: "trilho", hint: "Caminho para trens" },
+                { word: "ponte", hint: "Estrutura sobre rios ou vales" },
+                { word: "tunel", hint: "Passagem subterrânea" },
+                { word: "farol", hint: "Estrutura que guia navios" },
+                { word: "semaforo", hint: "Controla o trânsito" },
+                { word: "placa", hint: "Sinalização de trânsito" },
+                { word: "radar", hint: "Aparelho que detecta velocidade" },
+                { word: "caminhao", hint: "Veículo grande para transporte" },
+                { word: "moto", hint: "Veículo de duas rodas motorizado" },
+                { word: "patinete", hint: "Veículo pequeno para crianças" },
+                { word: "skate", hint: "Prancha com rodas para manobras" },
+                { word: "patins", hint: "Calçado com rodas para deslizar" },
+                { word: "helicoptero", hint: "Aeronave que sobe verticalmente" },
+                { word: "foguete", hint: "Veículo que vai ao espaço" },
+                { word: "satelite", hint: "Objeto que orbita a Terra" },
+                { word: "planeta", hint: "Corpo celeste como a Terra" },
+                { word: "galaxia", hint: "Conjunto de estrelas no universo" }
+            ]
+        };
+
+        const gridSize = 8;
+        let selectedWords = [];
+        let puzzle = [];
+        let correctGrid = [];
+        let selectedCell = null;
+
+        // Função para remover acentos
+        function removeAccents(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        // Detectar tema e aplicar às letras do tabuleiro e teclado
+        function updateTheme() {
+            const isDarkTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const cells = document.querySelectorAll('.cell');
+            const keys = document.querySelectorAll('.key');
+            cells.forEach(cell => {
+                if (isDarkTheme) {
+                    cell.classList.add('dark-theme');
+                } else {
+                    cell.classList.remove('dark-theme');
+                }
+            });
+            keys.forEach(key => {
+                if (isDarkTheme) {
+                    key.classList.add('dark-theme');
+                } else {
+                    key.classList.remove('dark-theme');
+                }
+            });
+        }
+
+        // Inicializar modal de início
+        document.getElementById('startModal').style.display = 'flex';
+
+        // Sidebar e eventos
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Monitorar mudanças no tema
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            selectedWords = [];
+            puzzle = [];
+            correctGrid = [];
+            selectedCell = null;
+            createGame();
+            createKeyboard();
+            createHints();
+            updateTheme();
+            closeModal('winModal');
+            openModal('startModal');
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            createGame();
+            createKeyboard();
+            createHints();
+            updateTheme();
+        }
+
+        function createGame() {
+            // Selecionar nível aleatoriamente
+            const levels = ['easy', 'medium', 'hard'];
+            const selectedLevel = levels[Math.floor(Math.random() * levels.length)];
+            const wordsPool = wordsList[selectedLevel];
+
+            // Selecionar palavras aleatoriamente (3 a 8 palavras)
+            const shuffledWords = wordsPool.sort(() => Math.random() - 0.5);
+            const numWords = Math.floor(Math.random() * 6) + 3; // 3 a 8 palavras
+            selectedWords = shuffledWords.slice(0, numWords).map(word => ({
+                word: word.word.toUpperCase(),
+                hint: word.hint,
+                start: { row: 0, col: 0 },
+                direction: Math.random() > 0.5 ? "H" : "V",
+                number: 0
+            }));
+
+            // Inicializar a grade
+            puzzle = Array(gridSize).fill().map(() => Array(gridSize).fill(1));
+            correctGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
+
+            // Posicionar as palavras
+            let numberCounter = 1;
+            selectedWords.forEach((word, index) => {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    const direction = word.direction;
+                    let maxRow = direction === "H" ? gridSize - 1 : gridSize - word.word.length;
+                    let maxCol = direction === "H" ? gridSize - word.word.length : gridSize - 1;
+                    if (maxRow < 0 || maxCol < 0) continue; // Pular palavras que não cabem
+                    let row = Math.floor(Math.random() * (maxRow + 1));
+                    let col = Math.floor(Math.random() * (maxCol + 1));
+
+                    // Verificar se a posição é válida
+                    let canPlace = true;
+                    for (let i = 0; i < word.word.length; i++) {
+                        const r = direction === "H" ? row : row + i;
+                        const c = direction === "H" ? col + i : col;
+                        if (correctGrid[r][c] !== '' && correctGrid[r][c] !== word.word[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+
+                    if (canPlace) {
+                        word.start = { row, col };
+                        word.number = numberCounter++;
+                        for (let i = 0; i < word.word.length; i++) {
+                            const r = direction === "H" ? row : row + i;
+                            const c = direction === "H" ? col + i : col;
+                            correctGrid[r][c] = word.word[i];
+                        }
+                        placed = true;
+                    }
+                }
+            });
+
+            // Preencher células não usadas como pretas
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    if (correctGrid[row][col] === '') {
+                        puzzle[row][col] = 0;
+                    }
+                }
+            }
+
+            createGrid();
+        }
+
+        function createGrid() {
+            const grid = document.getElementById("crossword-grid");
+            grid.innerHTML = "";
+            const numbers = {};
+            selectedWords.forEach(word => {
+                const key = `${word.start.row}-${word.start.col}`;
+                if (!numbers[key]) {
+                    numbers[key] = word.number;
+                }
+            });
+
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    if (puzzle[row][col] === 0) {
+                        cell.classList.add("black");
+                    } else {
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        cell.addEventListener("click", () => selectCell(cell));
+                        const numberKey = `${row}-${col}`;
+                        if (numbers[numberKey]) {
+                            const numberSpan = document.createElement("span");
+                            numberSpan.classList.add("cell-number");
+                            numberSpan.textContent = numbers[numberKey];
+                            cell.appendChild(numberSpan);
+                        }
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(cell) {
+            if (cell.classList.contains("black")) return;
+            if (selectedCell) {
+                selectedCell.classList.remove("selected");
+            }
+            selectedCell = cell;
+            selectedCell.classList.add("selected");
+        }
+
+        function createKeyboard() {
+            const keyboard = document.getElementById("keyboard");
+            keyboard.innerHTML = "";
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            letters.forEach(letter => {
+                const key = document.createElement('div');
+                key.classList.add('key');
+                key.textContent = letter;
+                key.addEventListener('click', () => insertLetter(letter));
+                keyboard.appendChild(key);
+            });
+            // Adicionar tecla Backspace
+            const backspaceKey = document.createElement('div');
+            backspaceKey.classList.add('key');
+            backspaceKey.textContent = '⌫';
+            backspaceKey.addEventListener('click', () => deleteLetter());
+            keyboard.appendChild(backspaceKey);
+        }
+
+        function insertLetter(letter) {
+            if (!selectedCell) return;
+            const row = parseInt(selectedCell.dataset.row);
+            const col = parseInt(selectedCell.dataset.col);
+            const correctLetter = correctGrid[row][col];
+            const normalizedInput = removeAccents(letter);
+            const normalizedCorrect = removeAccents(correctLetter);
+
+            // Só inserir se a letra corresponder à correta
+            if (normalizedInput === normalizedCorrect) {
+                selectedCell.textContent = correctLetter;
+                selectedCell.classList.remove("selected");
+                selectedCell = null;
+                checkWin();
+            }
+        }
+
+        function deleteLetter() {
+            if (!selectedCell) return;
+            selectedCell.textContent = '';
+            selectedCell.classList.remove("selected");
+            selectedCell = null;
+            checkWin();
+        }
+
+        function createHints() {
+            const hintsList = document.getElementById("hints-list");
+            hintsList.innerHTML = "";
+            selectedWords.forEach(word => {
+                const li = document.createElement("li");
+                li.textContent = `${word.number}-${word.direction === "H" ? "H" : "V"}: ${word.hint} (${word.word.length} letras)`;
+                hintsList.appendChild(li);
+            });
+        }
+
+        function checkWin() {
+            let allCorrect = true;
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    if (puzzle[row][col] === 1) {
+                        const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                        const cellText = cell.textContent || '';
+                        const normalizedCellText = removeAccents(cellText);
+                        const normalizedCorrect = removeAccents(correctGrid[row][col]);
+                        if (normalizedCellText !== normalizedCorrect) {
+                            allCorrect = false;
+                            break;
+                        }
+                    }
+                }
+                if (!allCorrect) break;
+            }
+            if (allCorrect) {
+                openModal('winModal');
+            }
+        }
+
+        // Inicializar o jogo
+        resetAndShowStartModal();
+    </script>
+</body>
+</html>

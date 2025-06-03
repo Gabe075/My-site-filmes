@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batalha Naval</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            max-width: 600px;
+            width: 95%;
+            margin: 20px;
+            display: none;
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            font-size: 1.5em;
+            margin: 15px 0;
+        }
+        .board-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+        }
+        .cell {
+            min-width: 30px;
+            min-height: 30px;
+            aspect-ratio: 1/1;
+            background: #b3e5fc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #0288d1;
+            cursor: pointer;
+            user-select: none;
+            color: #000;
+            transition: background 0.2s;
+            position: relative;
+            font-size: 1.2em;
+        }
+        .cell.ship {
+            background: #b3e5fc;
+        }
+        .cell.ship:not(.hit)::before {
+            content: '🚢';
+            font-size: 1.5em;
+            position: absolute;
+        }
+        .cell.hit {
+            background: #e0e0e0;
+        }
+        .cell.hit::before {
+            content: '🚢';
+            font-size: 1.5em;
+            position: absolute;
+            z-index: 5;
+        }
+        .cell.hit::after {
+            content: '💥';
+            position: absolute;
+            font-size: 1.5em;
+            animation: explode 0.5s ease-out forwards;
+            z-index: 10;
+        }
+        .cell.miss {
+            background: #0288d1;
+        }
+        .cell.miss::before {
+            content: '💧';
+            position: absolute;
+            font-size: 1.2em;
+        }
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .labels-row, .labels-col {
+            position: absolute;
+            display: flex;
+            font-size: 0.9em;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .labels-row {
+            top: -25px;
+            left: 0;
+            width: 100%;
+            justify-content: space-around;
+        }
+        .labels-col {
+            left: -25px;
+            top: 0;
+            height: 100%;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+        .label {
+            flex: 1;
+            text-align: center;
+        }
+        .score {
+            margin-top: 20px;
+            font-size: 1.2em;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            margin: 10px;
+            width: 100%;
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            h2 {
+                font-size: 1.3em;
+            }
+            .board {
+                max-width: 90vw;
+            }
+            .cell {
+                min-width: 30px;
+                min-height: 30px;
+                font-size: 1em;
+            }
+            .cell.ship::before, .cell.hit::before {
+                font-size: 1.2em;
+            }
+            .cell.miss::before {
+                font-size: 1em;
+            }
+            .labels-row, .labels-col {
+                font-size: 0.8em;
+            }
+            .labels-row {
+                top: -20px;
+            }
+            .labels-col {
+                left: -20px;
+            }
+            .score {
+                font-size: 1em;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+            .sidebar {
+                width: 200px;
+            }
+            .sidebar a {
+                font-size: 1em;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger" onclick="toggleSidebar()">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a href="#" onclick="openDifficultyModal()">Escolher Dificuldade</a>
+    </div>
+
+    <div class="container" id="gameContainer">
+        <h1>Batalha Naval</h1>
+        <div class="board-container">
+            <h2>Seu Tabuleiro</h2>
+            <div id="playerBoard" class="board">
+                <div class="labels-row">
+                    <div class="label">A</div><div class="label">B</div><div class="label">C</div><div class="label">D</div>
+                    <div class="label">E</div><div class="label">F</div><div class="label">G</div><div class="label">H</div>
+                    <div class="label">I</div><div class="label">J</div>
+                </div>
+                <div class="labels-col">
+                    <div class="label">1</div><div class="label">2</div><div class="label">3</div><div class="label">4</div>
+                    <div class="label">5</div><div class="label">6</div><div class="label">7</div><div class="label">8</div>
+                    <div class="label">9</div><div class="label">10</div>
+                </div>
+            </div>
+            <h2>Tabuleiro de Ataque</h2>
+            <div id="attackBoard" class="board">
+                <div class="labels-row">
+                    <div class="label">A</div><div class="label">B</div><div class="label">C</div><div class="label">D</div>
+                    <div class="label">E</div><div class="label">F</div><div class="label">G</div><div class="label">H</div>
+                    <div class="label">I</div><div class="label">J</div>
+                </div>
+                <div class="labels-col">
+                    <div class="label">1</div><div class="label">2</div><div class="label">3</div><div class="label">4</div>
+                    <div class="label">5</div><div class="label">6</div><div class="label">7</div><div class="label">8</div>
+                    <div class="label">9</div><div class="label">10</div>
+                </div>
+            </div>
+        </div>
+        <div class="score">Vitórias: <span id="wins">0</span> | Derrotas: <span id="losses">0</span></div>
+    </div>
+
+    <div id="startModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Batalha Naval</h2>
+            <p>Atire no tabuleiro de ataque para afundar os navios da IA. Evite que a IA afunde os seus! Use o menu para escolher a dificuldade.</p>
+            <button onclick="startGame()">Novo Jogo</button>
+            <button id="continueButton" onclick="continueGame()" style="display: none;">Continuar Jogo Salvo</button>
+        </div>
+    </div>
+    <div id="difficultyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('difficultyModal')">×</span>
+            <h2>Escolher Dificuldade</h2>
+            <button onclick="setDifficulty('easy')">💧 Fácil (3 Navios)</button>
+            <button onclick="setDifficulty('medium')">💧 Médio (5 Navios)</button>
+            <button onclick="setDifficulty('hard')">💧 Difícil (7 Navios)</button>
+            <button onclick="setDifficulty('expert')">💧 Hard (8 Navios)</button>
+            <button onclick="setDifficulty('impossible')">💧 Impossível (10 Navios)</button>
+        </div>
+    </div>
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('gameOverModal')">×</span>
+            <h2>Game Over!</h2>
+            <p>A IA afundou todos os seus navios!</p>
+            <button onclick="startGame()">Jogar Novamente</button>
+        </div>
+    </div>
+    <div id="winModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você afundou todos os navios da IA!</p>
+            <button onclick="startGame()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        const gridSize = 10;
+        let playerBoard = [];
+        let attackBoard = [];
+        let playerShips = [];
+        let aiShips = [];
+        let difficulty = 'medium';
+        let gameOver = false;
+        let wins = 0;
+        let losses = 0;
+        let playerHits = 0;
+        let aiHits = 0;
+        const shipConfigs = {
+            easy: [{ size: 2 }, { size: 3 }, { size: 4 }],
+            medium: [{ size: 2 }, { size: 2 }, { size: 3 }, { size: 3 }, { size: 4 }],
+            hard: [{ size: 2 }, { size: 2 }, { size: 2 }, { size: 3 }, { size: 3 }, { size: 4 }, { size: 5 }],
+            expert: [{ size: 2 }, { size: 2 }, { size: 2 }, { size: 3 }, { size: 3 }, { size: 3 }, { size: 4 }, { size: 5 }],
+            impossible: [{ size: 2 }, { size: 2 }, { size: 2 }, { size: 2 }, { size: 3 }, { size: 3 }, { size: 3 }, { size: 3 }, { size: 4 }, { size: 5 }]
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadScores();
+            checkSavedGame();
+            document.getElementById('startModal').style.display = 'flex';
+        });
+
+        function loadScores() {
+            const savedWins = localStorage.getItem('battleshipWins');
+            const savedLosses = localStorage.getItem('battleshipLosses');
+            wins = savedWins ? parseInt(savedWins) : 0;
+            losses = savedLosses ? parseInt(savedLosses) : 0;
+            updateScoreDisplay();
+        }
+
+        function saveScores() {
+            localStorage.setItem('battleshipWins', wins);
+            localStorage.setItem('battleshipLosses', losses);
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('wins').textContent = wins;
+            document.getElementById('losses').textContent = losses;
+        }
+
+        function checkSavedGame() {
+            const savedGame = localStorage.getItem('battleshipGame');
+            if (savedGame) {
+                document.getElementById('continueButton').style.display = 'block';
+            }
+        }
+
+        function saveGame() {
+            if (gameOver) return;
+            const gameState = {
+                playerBoard: playerBoard,
+                attackBoard: attackBoard,
+                playerShips: playerShips,
+                aiShips: aiShips,
+                difficulty: difficulty,
+                gameOver: gameOver,
+                playerHits: playerHits,
+                aiHits: aiHits
+            };
+            localStorage.setItem('battleshipGame', JSON.stringify(gameState));
+        }
+
+        function loadGame() {
+            const savedGame = localStorage.getItem('battleshipGame');
+            if (savedGame) {
+                const gameState = JSON.parse(savedGame);
+                playerBoard = gameState.playerBoard;
+                attackBoard = gameState.attackBoard;
+                playerShips = gameState.playerShips;
+                aiShips = gameState.aiShips;
+                difficulty = gameState.difficulty;
+                gameOver = gameState.gameOver;
+                playerHits = gameState.playerHits;
+                aiHits = gameState.aiHits;
+                createBoards();
+                updateScoreDisplay();
+                return true;
+            }
+            return false;
+        }
+
+        function clearSavedGame() {
+            localStorage.removeItem('battleshipGame');
+            document.getElementById('continueButton').style.display = 'none';
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function openDifficultyModal() {
+            toggleSidebar();
+            openModal('difficultyModal');
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            clearSavedGame();
+            closeModal('difficultyModal');
+            startGame();
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            closeModal('gameOverModal');
+            closeModal('winModal');
+            document.getElementById('gameContainer').style.display = 'block';
+            initGame();
+        }
+
+        function continueGame() {
+            closeModal('startModal');
+            document.getElementById('gameContainer').style.display = 'block';
+            if (!loadGame()) {
+                initGame();
+            }
+        }
+
+        function initGame() {
+            playerBoard = [];
+            attackBoard = [];
+            playerShips = [];
+            aiShips = [];
+            playerHits = 0;
+            aiHits = 0;
+            gameOver = false;
+
+            for (let y = 0; y < gridSize; y++) {
+                playerBoard[y] = [];
+                attackBoard[y] = [];
+                for (let x = 0; x < gridSize; x++) {
+                    playerBoard[y][x] = { ship: false, hit: false, miss: false };
+                    attackBoard[y][x] = { ship: false, hit: false, miss: false };
+                }
+            }
+
+            const ships = shipConfigs[difficulty];
+            playerShips = placeShips(ships);
+            aiShips = placeShips(ships);
+
+            playerShips.forEach(ship => {
+                ship.cells.forEach(cell => {
+                    playerBoard[cell.y][cell.x].ship = true;
+                });
+            });
+            aiShips.forEach(ship => {
+                ship.cells.forEach(cell => {
+                    attackBoard[cell.y][cell.x].ship = true;
+                });
+            });
+
+            createBoards();
+            saveGame();
+            updateScoreDisplay();
+        }
+
+        function placeShips(ships) {
+            const placedShips = [];
+            ships.forEach(ship => {
+                let placed = false;
+                while (!placed) {
+                    const isHorizontal = Math.random() < 0.5;
+                    const maxX = isHorizontal ? gridSize - ship.size : gridSize;
+                    const maxY = isHorizontal ? gridSize : gridSize - ship.size;
+                    const x = Math.floor(Math.random() * maxX);
+                    const y = Math.floor(Math.random() * maxY);
+                    const cells = [];
+
+                    let valid = true;
+                    for (let i = 0; i < ship.size; i++) {
+                        const cx = isHorizontal ? x + i : x;
+                        const cy = isHorizontal ? y : y + i;
+                        if (cx >= gridSize || cy >= gridSize || playerBoard[cy][cx].ship || attackBoard[cy][cx].ship) {
+                            valid = false;
+                            break;
+                        }
+                        cells.push({ x: cx, y: cy });
+                    }
+
+                    if (valid) {
+                        placedShips.push({ size: ship.size, cells: cells, hits: 0, sunk: false });
+                        placed = true;
+                    }
+                }
+            });
+            return placedShips;
+        }
+
+        function createBoards() {
+            const playerBoardElement = document.getElementById('playerBoard');
+            const attackBoardElement = document.getElementById('attackBoard');
+            playerBoardElement.innerHTML = '<div class="labels-row"><div class="label">A</div><div class="label">B</div><div class="label">C</div><div class="label">D</div><div class="label">E</div><div class="label">F</div><div class="label">G</div><div class="label">H</div><div class="label">I</div><div class="label">J</div></div><div class="labels-col"><div class="label">1</div><div class="label">2</div><div class="label">3</div><div class="label">4</div><div class="label">5</div><div class="label">6</div><div class="label">7</div><div class="label">8</div><div class="label">9</div><div class="label">10</div></div>';
+            attackBoardElement.innerHTML = '<div class="labels-row"><div class="label">A</div><div class="label">B</div><div class="label">C</div><div class="label">D</div><div class="label">E</div><div class="label">F</div><div class="label">G</div><div class="label">H</div><div class="label">I</div><div class="label">J</div></div><div class="labels-col"><div class="label">1</div><div class="label">2</div><div class="label">3</div><div class="label">4</div><div class="label">5</div><div class="label">6</div><div class="label">7</div><div class="label">8</div><div class="label">9</div><div class="label">10</div></div>';
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const playerCell = document.createElement('div');
+                    playerCell.className = 'cell';
+                    if (playerBoard[y][x].ship && !playerBoard[y][x].hit) {
+                        playerCell.classList.add('ship');
+                    }
+                    if (playerBoard[y][x].hit) {
+                        playerCell.classList.add('hit');
+                    }
+                    if (playerBoard[y][x].miss) {
+                        playerCell.classList.add('miss');
+                    }
+                    playerCell.dataset.x = x;
+                    playerCell.dataset.y = y;
+                    playerBoardElement.appendChild(playerCell);
+
+                    const attackCell = document.createElement('div');
+                    attackCell.className = 'cell';
+                    if (attackBoard[y][x].hit) {
+                        attackCell.classList.add('hit');
+                    }
+                    if (attackBoard[y][x].miss) {
+                        attackCell.classList.add('miss');
+                    }
+                    attackCell.dataset.x = x;
+                    attackCell.dataset.y = y;
+                    attackCell.addEventListener('click', handlePlayerAttack);
+                    attackCell.addEventListener('touchstart', handlePlayerAttack, { passive: false });
+                    attackBoardElement.appendChild(attackCell);
+                }
+            }
+        }
+
+        function handlePlayerAttack(event) {
+            event.preventDefault();
+            if (gameOver) return;
+            const x = parseInt(event.target.dataset.x);
+            const y = parseInt(event.target.dataset.y);
+            if (attackBoard[y][x].hit || attackBoard[y][x].miss) return;
+
+            if (attackBoard[y][x].ship) {
+                attackBoard[y][x].hit = true;
+                playerHits++;
+                aiShips.forEach(ship => {
+                    ship.cells.forEach(cell => {
+                        if (cell.x === x && cell.y === y) {
+                            ship.hits++;
+                            if (ship.hits === ship.size) {
+                                ship.sunk = true;
+                            }
+                        }
+                    });
+                });
+            } else {
+                attackBoard[y][x].miss = true;
+            }
+
+            createBoards();
+            saveGame();
+
+            if (aiShips.every(ship => ship.sunk)) {
+                gameOver = true;
+                wins++;
+                saveScores();
+                updateScoreDisplay();
+                clearSavedGame();
+                openModal('winModal');
+                return;
+            }
+
+            setTimeout(aiAttack, 500);
+        }
+
+        function aiAttack() {
+            if (gameOver) return;
+            let x, y;
+            if (['hard', 'expert', 'impossible'].includes(difficulty)) {
+                const hitCells = [];
+                playerBoard.forEach((row, ry) => {
+                    row.forEach((cell, rx) => {
+                        if (cell.hit && cell.ship) {
+                            hitCells.push({ x: rx, y: ry });
+                        }
+                    });
+                });
+                if (hitCells.length > 0) {
+                    const adjCells = [];
+                    hitCells.forEach(cell => {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (dx === 0 && dy === 0) continue;
+                                const nx = cell.x + dx;
+                                const ny = cell.y + dy;
+                                if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && !playerBoard[ny][nx].hit && !playerBoard[ny][nx].miss) {
+                                    adjCells.push({ x: nx, y: ny });
+                                }
+                            }
+                        }
+                    });
+                    if (adjCells.length > 0) {
+                        const target = adjCells[Math.floor(Math.random() * adjCells.length)];
+                        x = target.x;
+                        y = target.y;
+                    }
+                }
+            }
+            if (x === undefined) {
+                do {
+                    x = Math.floor(Math.random() * gridSize);
+                    y = Math.floor(Math.random() * gridSize);
+                } while (playerBoard[y][x].hit || playerBoard[y][x].miss);
+            }
+
+            if (playerBoard[y][x].ship) {
+                playerBoard[y][x].hit = true;
+                aiHits++;
+                playerShips.forEach(ship => {
+                    ship.cells.forEach(cell => {
+                        if (cell.x === x && cell.y === y) {
+                            ship.hits++;
+                            if (ship.hits === ship.size) {
+                                ship.sunk = true;
+                            }
+                        }
+                    });
+                });
+            } else {
+                playerBoard[y][x].miss = true;
+            }
+
+            createBoards();
+            saveGame();
+
+            if (playerShips.every(ship => ship.sunk)) {
+                gameOver = true;
+                losses++;
+                saveScores();
+                updateScoreDisplay();
+                clearSavedGame();
+                openModal('gameOverModal');
+            }
+        }
+    </script>
+</body>
+</html>

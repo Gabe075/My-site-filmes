@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combinar 3 - Emojis (Swipe)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px; /* Reduzido para mais espaço para o tabuleiro */
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 550px; /* Ajustado para tabuleiro 10x10 */
+            width: 95%;      /* Para melhor uso em telas menores */
+            margin: 10px;    /* Reduzido */
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2em; /* Reduzido */
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .game-info-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .high-score-display {
+            font-size: 0.9em; /* Reduzido */
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            font-weight: 500;
+        }
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 320px; 
+            font-size: 1.1em; /* Reduzido */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        #game-board {
+            display: grid;
+            gap: 1px; 
+            background: rgba(0, 0, 0, 0.2);
+            padding: 3px; /* Reduzido */
+            border-radius: 8px; /* Reduzido */
+            margin: 10px auto;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.3);
+            touch-action: none; /* Importante para o swipe em mobile */
+        }
+        .cell {
+            background: rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px; /* Reduzido */
+            cursor: grab;
+            transition: transform 0.1s ease, background-color 0.1s ease;
+            position: relative; 
+        }
+        .cell.dragging {
+            opacity: 0.7;
+            transform: scale(1.1);
+            z-index: 10; /* Para ficar por cima ao arrastar */
+        }
+         .cell.hint { 
+            animation: pulseHint 1s infinite;
+        }
+        @keyframes pulseHint {
+            0% { box-shadow: 0 0 3px rgba(255, 255, 0, 0.4); }
+            50% { box-shadow: 0 0 10px rgba(255, 255, 0, 0.7); }
+            100% { box-shadow: 0 0 3px rgba(255, 255, 0, 0.4); }
+        }
+        .cell.matched {
+            animation: popMatched 0.3s ease-out forwards;
+        }
+        @keyframes popMatched {
+            0% { transform: scale(1.1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .hamburger {
+            position: fixed; top: 15px; left: 15px; font-size: 28px; /* Ajustado */
+            cursor: pointer; z-index: 2000; color: #fff; transition: transform 0.3s;
+        }
+        .hamburger:hover { transform: rotate(90deg); }
+        .sidebar {
+            position: fixed; top: 0; left: -250px; width: 250px; height: 100%;
+            background: #2c3e50; color: #fff; transition: left 0.3s ease-in-out;
+            z-index: 2000; padding: 20px; display: flex; flex-direction: column;
+        }
+        .sidebar.open { left: 0; }
+        .sidebar a, .sidebar .sidebar-button { 
+            display: block; color: #fff; padding: 15px; text-decoration: none;
+            font-size: 1.1em; border-radius: 5px; margin: 5px 0;
+            transition: background 0.2s; cursor: pointer; background: none;
+            border: none; text-align: left; width: 100%;
+        }
+        .sidebar a:hover, .sidebar .sidebar-button:hover { background: #34495e; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); z-index: 3000; 
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3); padding: 30px;
+            border-radius: 20px; max-width: 500px; width: 90%;
+            text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5); animation: popIn 0.5s ease-out forwards; color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 { font-size: 2em; margin-bottom: 15px; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+        .modal-content p { font-size: 1.2em; margin-bottom: 20px; }
+        .modal-content .final-score-text { margin-bottom: 10px; }
+        .modal-content .new-highscore-text { font-size: 1.1em; color: #facc15; margin-bottom: 20px; font-weight: bold; }
+        .modal-content button {
+            padding: 12px 25px; border: none; border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3); color: #fff;
+            cursor: pointer; font-size: 1em; font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); margin: 5px;
+        }
+        .modal-content button:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
+        .close {
+            position: absolute; top: 15px; right: 20px; font-size: 30px;
+            cursor: pointer; color: #fff; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover { transform: rotate(90deg); }
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            h1 { font-size: 1.6em; }
+            .game-info { font-size: 1em; }
+            .high-score-display { font-size: 0.8em; }
+            .modal-content { padding: 20px; }
+            .modal-content h2 { font-size: 1.5em; }
+            .modal-content p { font-size: 1em; }
+            .modal-content button { padding: 10px 20px; font-size: 0.9em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+        <button class="sidebar-button" onclick="showHint()">💡 Dica</button>
+    </div>
+
+    <div class="container">
+        <h1>Combinar 3 - Emojis</h1>
+        <div class="game-info-container">
+            <div class="high-score-display">Recorde: <span id="high-score">0</span></div>
+            <div class="game-info">
+                <div>Pontuação: <span id="score">0</span></div>
+                <div>Jogadas: <span id="moves">25</span></div> </div>
+        </div>
+        <div id="game-board"></div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Combinar 3 - Emojis!</h2>
+            <p>Arraste um emoji para trocá-lo com um vizinho e formar linhas de 3 ou mais iguais. Você tem um número limitado de jogadas!</p>
+            <button onclick="initializeGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="endModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('endModal'); resetAndShowStartModal();">×</span>
+            <h2 id="endModalTitle">Fim de Jogo!</h2>
+            <p class="final-score-text">Sua pontuação final foi: <span id="final-score">0</span></p>
+            <p id="new-highscore-message" class="new-highscore-text" style="display: none;">🎉 Novo Recorde! 🎉</p>
+            <button onclick="resetAndShowStartModal()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        const gameBoardElement = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const movesDisplay = document.getElementById('moves');
+        const highScoreDisplay = document.getElementById('high-score');
+        const startModal = document.getElementById('startModal');
+        const endModal = document.getElementById('endModal');
+        const endModalTitle = document.getElementById('endModalTitle');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const newHighscoreMessage = document.getElementById('new-highscore-message');
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+
+        const BOARD_SIZE = 10; // Tabuleiro 10x10
+        let CELL_SIZE = 40; // Será recalculado
+        const EMOJIS = ['🍎', '🍊', '🍋', '🍉', '🍇', '🍓', '🍒', '🍍', '🥝', '🥭']; // Mais emojis para 10x10
+        const INITIAL_MOVES = 25; // Aumentei um pouco para 10x10
+        const HINT_PENALTY = 1;
+
+        let board = [];
+        let score = 0;
+        let movesLeft = INITIAL_MOVES;
+        let highScore = 0;
+        let gameActive = false;
+        let isProcessing = false; // Para prevenir ações durante processamento de matches/quedas
+        let hintTimeout = null;
+
+        // Variáveis para o swipe
+        let dragStartCell = null;
+        let dragStartX, dragStartY;
+
+        function calculateCellSize() {
+            const boardPadding = 6; // padding do #game-board (3px de cada lado)
+            const boardGap = (BOARD_SIZE -1) * 1; // gap entre células
+            const availableWidth = Math.min(window.innerWidth * 0.9, 500) - (2*15) - boardPadding; // Largura do container - padding container - padding board
+            CELL_SIZE = Math.floor(availableWidth / BOARD_SIZE) -1; // -1 para garantir que caiba com o gap
+            if (CELL_SIZE < 25) CELL_SIZE = 25; // Tamanho mínimo
+        }
+
+
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            closeModal('endModal');
+            gameActive = false;
+            isProcessing = false;
+            calculateCellSize();
+            loadHighScore();
+            updateScoreDisplay(0);
+            updateMovesDisplay(INITIAL_MOVES);
+            openModal('startModal');
+        }
+
+        function initializeGame() {
+            closeModal('startModal');
+            score = 0;
+            movesLeft = INITIAL_MOVES;
+            isProcessing = false;
+            gameActive = true;
+            
+            updateScoreDisplay();
+            updateMovesDisplay();
+            createBoard(); // Cria a estrutura do tabuleiro
+            populateBoardUntilNoMatches(); // Popula e garante que não há matches iniciais
+        }
+        
+        function populateBoardUntilNoMatches() {
+            do {
+                populateBoard();
+                removeMatches(findAllMatches(), false); // Remove sem pontuar/animar
+                shiftEmojisDown(false);
+                fillEmptyCells(false);
+            } while (findAllMatches().length > 0);
+        }
+
+
+        function createBoard() {
+            gameBoardElement.innerHTML = '';
+            gameBoardElement.style.gridTemplateColumns = `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)`;
+            gameBoardElement.style.gridTemplateRows = `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)`;
+            // Ajuste de tamanho do gameBoardElement para incluir gaps e padding
+            const boardTotalSize = (CELL_SIZE * BOARD_SIZE) + ((BOARD_SIZE - 1) * 1) + (2 * 3); // (células + gaps + padding)
+            gameBoardElement.style.width = `${boardTotalSize}px`;
+            gameBoardElement.style.height = `${boardTotalSize}px`;
+            board = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                board[r] = [];
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cellElement = document.createElement('div');
+                    cellElement.classList.add('cell');
+                    cellElement.dataset.row = r;
+                    cellElement.dataset.col = c;
+                    cellElement.style.width = `${CELL_SIZE}px`;
+                    cellElement.style.height = `${CELL_SIZE}px`;
+                    cellElement.style.fontSize = `${CELL_SIZE * 0.55}px`; // Ajuste do tamanho do emoji
+
+                    // Eventos de Swipe/Drag
+                    cellElement.addEventListener('mousedown', handleDragStart);
+                    cellElement.addEventListener('touchstart', handleDragStart, { passive: false });
+                    
+                    gameBoardElement.appendChild(cellElement);
+                    board[r][c] = { element: cellElement, emoji: null, row: r, col: c };
+                }
+            }
+            // Adiciona listeners globais para mouseup/touchend para finalizar o drag
+            document.addEventListener('mouseup', handleDragEnd);
+            document.addEventListener('touchend', handleDragEnd);
+            document.addEventListener('mousemove', handleDragMove);
+            document.addEventListener('touchmove', handleDragMove, { passive: false });
+        }
+
+        function populateBoard() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    fillCell(r, c);
+                }
+            }
+        }
+
+        function fillCell(r, c, animate = true) {
+            const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+            board[r][c].emoji = emoji;
+            board[r][c].element.textContent = emoji;
+            if (animate) {
+                board[r][c].element.style.transform = 'scale(0)';
+                board[r][c].element.style.opacity = '0';
+                setTimeout(() => {
+                    board[r][c].element.style.transform = 'scale(1)';
+                    board[r][c].element.style.opacity = '1';
+                }, 100 + Math.random() * 200); // Pequeno delay aleatório para efeito
+            }
+        }
+        
+        // --- Swipe Logic ---
+        function handleDragStart(event) {
+            if (!gameActive || isProcessing || dragStartCell) return;
+            const cellElement = event.currentTarget;
+            dragStartCell = board[parseInt(cellElement.dataset.row)][parseInt(cellElement.dataset.col)];
+            cellElement.classList.add('dragging');
+            
+            if (event.type === 'touchstart') {
+                dragStartX = event.touches[0].clientX;
+                dragStartY = event.touches[0].clientY;
+            } else {
+                dragStartX = event.clientX;
+                dragStartY = event.clientY;
+            }
+            event.preventDefault(); // Previne scroll em touch e drag de imagem em desktop
+        }
+
+        function handleDragMove(event) {
+            if (!dragStartCell || !gameActive || isProcessing) return;
+            event.preventDefault();
+            // Lógica de mover o emoji visualmente com o cursor (opcional, pode ser complexo)
+            // Por simplicidade, vamos focar em detectar o swipe ao soltar
+        }
+
+        async function handleDragEnd(event) {
+            if (!dragStartCell || !gameActive || isProcessing) return;
+            
+            let endX, endY;
+            if (event.type === 'touchend') {
+                if (event.changedTouches.length === 0) { // Nenhum toque finalizado, talvez um cancelamento
+                    dragStartCell.element.classList.remove('dragging');
+                    dragStartCell = null;
+                    return;
+                }
+                endX = event.changedTouches[0].clientX;
+                endY = event.changedTouches[0].clientY;
+            } else { // mouseup
+                endX = event.clientX;
+                endY = event.clientY;
+            }
+
+            const deltaX = endX - dragStartX;
+            const deltaY = endY - dragStartY;
+            let targetCell = null;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) { // Swipe horizontal
+                if (deltaX > CELL_SIZE / 3 && dragStartCell.col < BOARD_SIZE - 1) { // Swipe para direita
+                    targetCell = board[dragStartCell.row][dragStartCell.col + 1];
+                } else if (deltaX < -CELL_SIZE / 3 && dragStartCell.col > 0) { // Swipe para esquerda
+                    targetCell = board[dragStartCell.row][dragStartCell.col - 1];
+                }
+            } else { // Swipe vertical
+                if (deltaY > CELL_SIZE / 3 && dragStartCell.row < BOARD_SIZE - 1) { // Swipe para baixo
+                    targetCell = board[dragStartCell.row + 1][dragStartCell.col];
+                } else if (deltaY < -CELL_SIZE / 3 && dragStartCell.row > 0) { // Swipe para cima
+                    targetCell = board[dragStartCell.row - 1][dragStartCell.col];
+                }
+            }
+            
+            dragStartCell.element.classList.remove('dragging');
+
+            if (targetCell) {
+                isProcessing = true;
+                clearHints();
+                await attemptSwap(dragStartCell, targetCell);
+                isProcessing = false;
+                 if (movesLeft <= 0 && gameActive) {
+                    endGame();
+                }
+            }
+            dragStartCell = null;
+        }
+
+        async function attemptSwap(cell1, cell2) {
+            // Troca lógica para verificação
+            swapEmojisForCheck(cell1, cell2);
+            const matchesAfterSwap = findAllMatches();
+
+            if (matchesAfterSwap.length > 0) { // Swap válido
+                // Atualiza visualmente (já que swapEmojisForCheck só fez lógico)
+                const emoji1 = cell1.emoji; // Já trocado logicamente
+                const emoji2 = cell2.emoji;
+                cell1.element.textContent = emoji1;
+                cell2.element.textContent = emoji2;
+
+                movesLeft--;
+                updateMovesDisplay();
+                await processMatchesAndCascades();
+            } else { // Swap inválido, desfaz
+                swapEmojisForCheck(cell1, cell2); // Desfaz a troca lógica
+                // Animação de "não pode" ou simplesmente não faz nada visualmente
+                cell1.element.style.transform = 'translateX(5px)';
+                cell2.element.style.transform = 'translateX(-5px)';
+                await new Promise(r => setTimeout(r, 100));
+                cell1.element.style.transform = '';
+                cell2.element.style.transform = '';
+            }
+        }
+        
+        // --- Match, Cascade, Fill ---
+         async function processMatchesAndCascades() {
+            let currentMatches = findAllMatches();
+            let comboCount = 0;
+            while (currentMatches.length > 0) {
+                comboCount++;
+                let pointsEarned = currentMatches.length * 10;
+                if (currentMatches.length >= 4) pointsEarned += (currentMatches.length - 3) * 10;
+                if (comboCount > 1) pointsEarned += (comboCount -1) * 20; // Bônus de combo
+                score += pointsEarned;
+                updateScoreDisplay();
+
+                removeMatches(currentMatches);
+                await new Promise(resolve => setTimeout(resolve, 350)); // Tempo para animação de remoção
+
+                shiftEmojisDown();
+                await new Promise(resolve => setTimeout(resolve, 250)); // Tempo para animação de queda
+
+                fillEmptyCells();
+                await new Promise(resolve => setTimeout(resolve, 150)); 
+
+                currentMatches = findAllMatches();
+            }
+        }
+
+
+        function findAllMatches() {
+            const matches = new Set(); // Usar Set para evitar duplicatas de células
+            // Horizontal
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE - 2; c++) {
+                    if (board[r][c].emoji && board[r][c].emoji === board[r][c+1].emoji && board[r][c].emoji === board[r][c+2].emoji) {
+                        let currentMatch = [{row: r, col: c}, {row: r, col: c+1}, {row: r, col: c+2}];
+                        for (let k = c + 3; k < BOARD_SIZE && board[r][k].emoji === board[r][c].emoji; k++) {
+                            currentMatch.push({row: r, col: k});
+                        }
+                        currentMatch.forEach(m => matches.add(JSON.stringify(m)));
+                    }
+                }
+            }
+            // Vertical
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                for (let r = 0; r < BOARD_SIZE - 2; r++) {
+                    if (board[r][c].emoji && board[r][c].emoji === board[r+1][c].emoji && board[r][c].emoji === board[r+2][c].emoji) {
+                         let currentMatch = [{row: r, col: c}, {row: r+1, col: c}, {row: r+2, col: c}];
+                        for (let k = r + 3; k < BOARD_SIZE && board[k][c].emoji === board[r][c].emoji; k++) {
+                            currentMatch.push({row: k, col: c});
+                        }
+                        currentMatch.forEach(m => matches.add(JSON.stringify(m)));
+                    }
+                }
+            }
+            return Array.from(matches).map(s => JSON.parse(s));
+        }
+        
+        function removeMatches(matches, animate = true) {
+            matches.forEach(match => {
+                board[match.row][match.col].emoji = null;
+                if (animate) {
+                    board[match.row][match.col].element.classList.add('matched');
+                } else {
+                    board[match.row][match.col].element.textContent = '';
+                }
+            });
+            if (animate) {
+                setTimeout(() => {
+                    matches.forEach(match => {
+                        if (board[match.row] && board[match.row][match.col]) {
+                             board[match.row][match.col].element.classList.remove('matched');
+                             board[match.row][match.col].element.textContent = ''; // Limpa após animação
+                        }
+                    });
+                }, 300);
+            }
+        }
+
+        function shiftEmojisDown(animate = true) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let emptyRow = BOARD_SIZE - 1;
+                for (let r = BOARD_SIZE - 1; r >= 0; r--) {
+                    if (board[r][c].emoji !== null) {
+                        if (r !== emptyRow) {
+                            board[emptyRow][c].emoji = board[r][c].emoji;
+                            board[emptyRow][c].element.textContent = board[r][c].emoji;
+                            // TODO: Animação de queda individual
+                            board[r][c].emoji = null;
+                            board[r][c].element.textContent = '';
+                        }
+                        emptyRow--;
+                    }
+                }
+            }
+        }
+
+        function fillEmptyCells(animate = true) {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c].emoji === null) {
+                        fillCell(r, c, animate);
+                    }
+                }
+            }
+        }
+
+        function swapEmojisForCheck(cellData1, cellData2) {
+            const tempEmoji = cellData1.emoji;
+            cellData1.emoji = cellData2.emoji;
+            cellData2.emoji = tempEmoji;
+            // Não atualiza o DOM aqui, apenas a lógica do board
+        }
+
+
+        function findPossibleMove() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    // Tenta trocar com a célula à direita
+                    if (c < BOARD_SIZE - 1) {
+                        swapEmojisForCheck(board[r][c], board[r][c + 1]);
+                        if (findAllMatches().length > 0) {
+                            swapEmojisForCheck(board[r][c], board[r][c + 1]); 
+                            return [board[r][c], board[r][c + 1]];
+                        }
+                        swapEmojisForCheck(board[r][c], board[r][c + 1]); 
+                    }
+                    // Tenta trocar com a célula abaixo
+                    if (r < BOARD_SIZE - 1) {
+                        swapEmojisForCheck(board[r][c], board[r + 1][c]);
+                        if (findAllMatches().length > 0) {
+                            swapEmojisForCheck(board[r][c], board[r + 1][c]); 
+                            return [board[r][c], board[r + 1][c]];
+                        }
+                        swapEmojisForCheck(board[r][c], board[r + 1][c]); 
+                    }
+                }
+            }
+            return null;
+        }
+
+        function showHint() {
+            if (!gameActive || isProcessing || movesLeft < HINT_PENALTY) return;
+            clearHints(); 
+
+            const possibleMove = findPossibleMove();
+            if (possibleMove) {
+                movesLeft -= HINT_PENALTY;
+                updateMovesDisplay();
+                possibleMove.forEach(cellData => {
+                    cellData.element.classList.add('hint');
+                });
+                hintTimeout = setTimeout(clearHints, 2000); 
+                 if (movesLeft <= 0 && gameActive) {
+                    endGame();
+                }
+            } else {
+                console.log("Nenhuma dica disponível.");
+            }
+        }
+        function clearHints() {
+            if (hintTimeout) clearTimeout(hintTimeout);
+            const hintedCells = document.querySelectorAll('.cell.hint');
+            hintedCells.forEach(cell => cell.classList.remove('hint'));
+        }
+
+        function updateScoreDisplay(value = score) {
+            score = value;
+            scoreDisplay.textContent = score;
+        }
+        function updateMovesDisplay(value = movesLeft) {
+            movesLeft = value;
+            movesDisplay.textContent = movesLeft;
+        }
+        function loadHighScore() {
+            const savedHighScore = localStorage.getItem('match3EmojiSwipe_Gabe075'); // Nova chave
+            highScore = savedHighScore ? parseInt(savedHighScore, 10) : 0;
+            highScoreDisplay.textContent = highScore;
+        }
+        function saveHighScore() {
+            localStorage.setItem('match3EmojiSwipe_Gabe075', highScore.toString());
+        }
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                saveHighScore();
+                highScoreDisplay.textContent = highScore;
+                newHighscoreMessage.style.display = 'block';
+            } else {
+                newHighscoreMessage.style.display = 'none';
+            }
+        }
+        function endGame() {
+            gameActive = false;
+            isProcessing = true; // Previne mais ações
+            updateHighScore();
+            finalScoreDisplay.textContent = score;
+            endModalTitle.textContent = movesLeft <= 0 ? "Sem Jogadas!" : "Fim de Jogo!";
+            openModal('endModal');
+        }
+
+        window.addEventListener('resize', () => {
+            if(!gameActive) resetAndShowStartModal();
+        });
+        document.addEventListener('DOMContentLoaded', resetAndShowStartModal);
+
+    </script>
+</body>
+</html>
+

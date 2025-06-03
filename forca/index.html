@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Forca</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 600px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #hangman {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            position: relative;
+        }
+        #hangman canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #hint {
+            font-size: 1.2em;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        #word-display {
+            font-size: 2em;
+            margin: 20px 0;
+            letter-spacing: 5px;
+        }
+        #keyboard {
+            display: grid;
+            grid-template-columns: repeat(7, 40px);
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .key {
+            width: 40px;
+            height: 40px;
+            background: #e0e0e0; /* Fundo cinza claro */
+            color: #000; /* Letras pretas */
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s ease;
+        }
+        .key:hover {
+            background: #d0d0d0; /* Tom mais escuro ao passar o mouse */
+        }
+        .key.disabled {
+            background: #a0a0a0; /* Tom mais escuro para desativadas */
+            color: #444; /* Letras mais claras para desativadas */
+            cursor: not-allowed;
+        }
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 15px;
+            }
+            #hangman {
+                width: 120px;
+                height: 120px;
+            }
+            #word-display {
+                font-size: 1.5em;
+                letter-spacing: 3px;
+            }
+            #keyboard {
+                grid-template-columns: repeat(7, 30px);
+            }
+            .key {
+                width: 30px;
+                height: 30px;
+                font-size: 1em;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Jogo da Forca</h1>
+        <div id="hangman">
+            <canvas id="hangmanCanvas" width="150" height="150"></canvas>
+        </div>
+        <div id="hint"></div>
+        <div id="word-display"></div>
+        <div id="keyboard"></div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Jogo da Forca</h2>
+            <p>Adivinhe a palavra com base na dica! Você tem 6 tentativas.</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('winModal')">×</span>
+            <h2>Parabéns!</h2>
+            <p>Você acertou a palavra!</p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+    <div class="modal" id="loseModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loseModal')">×</span>
+            <h2>Que Pena!</h2>
+            <p>A palavra era: <span id="correctWord"></span></p>
+            <button onclick="resetAndShowStartModal()">Novo Jogo</button>
+        </div>
+    </div>
+
+    <script>
+        const words = [
+            // Fáceis (50 palavras)
+            { word: "sol", hint: "Estrela que ilumina a Terra" },
+            { word: "lua", hint: "Corpo celeste visível à noite" },
+            { word: "rio", hint: "Curso de água que deságua no mar" },
+            { word: "flor", hint: "Parte colorida de uma planta" },
+            { word: "casa", hint: "Lugar onde as pessoas moram" },
+            { word: "gato", hint: "Animal doméstico que mia" },
+            { word: "cao", hint: "Melhor amigo do homem" },
+            { word: "bola", hint: "Objeto redondo usado em jogos" },
+            { word: "arvore", hint: "Planta alta com tronco e folhas" },
+            { word: "mesa", hint: "Móvel usado para refeições" },
+            { word: "cadeira", hint: "Móvel para sentar" },
+            { word: "livro", hint: "Objeto com páginas para leitura" },
+            { word: "carro", hint: "Veículo com quatro rodas" },
+            { word: "aviao", hint: "Veículo que voa no céu" },
+            { word: "peixe", hint: "Animal que vive na água" },
+            { word: "pato", hint: "Ave que nada e grasna" },
+            { word: "leao", hint: "Rei da selva" },
+            { word: "tigre", hint: "Felino com listras" },
+            { word: "banana", hint: "Fruta amarela e doce" },
+            { word: "maca", hint: "Fruta vermelha ou verde" },
+            { word: "uva", hint: "Fruta pequena que cresce em cachos" },
+            { word: "laranja", hint: "Fruta cítrica de cor laranja" },
+            { word: "agua", hint: "Líquido essencial para a vida" },
+            { word: "fogo", hint: "Elemento que queima" },
+            { word: "terra", hint: "Planeta onde vivemos" },
+            { word: "vento", hint: "Movimento do ar" },
+            { word: "chuva", hint: "Água que cai do céu" },
+            { word: "nuvem", hint: "Formação branca no céu" },
+            { word: "estrela", hint: "Ponto brilhante no céu noturno" },
+            { word: "praia", hint: "Lugar com areia e mar" },
+            { word: "montanha", hint: "Elevação alta na paisagem" },
+            { word: "floresta", hint: "Área cheia de árvores" },
+            { word: "lago", hint: "Grande corpo de água cercado por terra" },
+            { word: "sapato", hint: "Calçado para os pés" },
+            { word: "camisa", hint: "Peça de roupa para o tronco" },
+            { word: "calca", hint: "Peça de roupa para as pernas" },
+            { word: "boneca", hint: "Brinquedo em forma de pessoa" },
+            { word: "carrinho", hint: "Brinquedo com rodas" },
+            { word: "pipoca", hint: "Lanche feito de milho" },
+            { word: "chocolate", hint: "Doce feito de cacau" },
+            { word: "sorvete", hint: "Sobremesa gelada" },
+            { word: "pizza", hint: "Comida italiana com massa e queijo" },
+            { word: "hamburguer", hint: "Sanduíche com carne e pão" },
+            { word: "batata", hint: "Legume usado em fritas" },
+            { word: "tomate", hint: "Fruta vermelha usada em saladas" },
+            { word: "cenoura", hint: "Legume laranja e crocante" },
+            { word: "cebola", hint: "Legume que faz chorar" },
+            { word: "ovo", hint: "Alimento que vem da galinha" },
+            { word: "leite", hint: "Bebida branca produzida por vacas" },
+
+            // Médias (50 palavras)
+            { word: "escola", hint: "Lugar onde se aprende" },
+            { word: "professor", hint: "Pessoa que ensina" },
+            { word: "aluno", hint: "Quem estuda na escola" },
+            { word: "caderno", hint: "Usado para escrever anotações" },
+            { word: "lapis", hint: "Instrumento para escrever ou desenhar" },
+            { word: "caneta", hint: "Escreve com tinta" },
+            { word: "borracha", hint: "Apaga erros de lápis" },
+            { word: "tesoura", hint: "Usada para cortar papel" },
+            { word: "cola", hint: "Adesivo para papel" },
+            { word: "mochila", hint: "Usada para carregar material escolar" },
+            { word: "computador", hint: "Máquina para trabalhar ou jogar" },
+            { word: "televisao", hint: "Aparelho para assistir programas" },
+            { word: "celular", hint: "Dispositivo para ligações e mensagens" },
+            { word: "internet", hint: "Rede mundial de computadores" },
+            { word: "janela", hint: "Abertura na parede para luz e ar" },
+            { word: "porta", hint: "Entrada ou saída de um ambiente" },
+            { word: "telhado", hint: "Parte de cima de uma casa" },
+            { word: "chamine", hint: "Estrutura para saída de fumaça" },
+            { word: "espelho", hint: "Superfície que reflete a imagem" },
+            { word: "sofá", hint: "Móvel confortável para sentar" },
+            { word: "geladeira", hint: "Eletrodoméstico que conserva alimentos" },
+            { word: "fogao", hint: "Usado para cozinhar" },
+            { word: "microondas", hint: "Eletrodoméstico que esquenta comida" },
+            { word: "prato", hint: "Usado para servir comida" },
+            { word: "garfo", hint: "Utensílio para comer" },
+            { word: "faca", hint: "Utensílio para cortar alimentos" },
+            { word: "colher", hint: "Utensílio para sopa ou sobremesa" },
+            { word: "copo", hint: "Usado para beber líquidos" },
+            { word: "toalha", hint: "Pano para secar as mãos ou corpo" },
+            { word: "travesseiro", hint: "Usado para apoiar a cabeça ao dormir" },
+            { word: "cobertor", hint: "Usado para se aquecer na cama" },
+            { word: "roupa", hint: "Peças que vestimos" },
+            { word: "sapateiro", hint: "Profissional que conserta calçados" },
+            { word: "costureira", hint: "Profissional que faz roupas" },
+            { word: "padeiro", hint: "Profissional que faz pão" },
+            { word: "cozinheiro", hint: "Profissional que prepara comida" },
+            { word: "medico", hint: "Profissional que cuida da saúde" },
+            { word: "enfermeiro", hint: "Auxilia médicos em hospitais" },
+            { word: "dentista", hint: "Cuida dos dentes" },
+            { word: "farmacia", hint: "Lugar onde se compra remédios" },
+            { word: "hospital", hint: "Lugar para tratar doentes" },
+            { word: "ambulancia", hint: "Veículo para emergências médicas" },
+            { word: "bombeiro", hint: "Profissional que apaga incêndios" },
+            { word: "policia", hint: "Força que mantém a ordem pública" },
+            { word: "carteiro", hint: "Entrega cartas e encomendas" },
+            { word: "jardineiro", hint: "Cuida de plantas e jardins" },
+            { word: "eletricista", hint: "Conserta instalações elétricas" },
+            { word: "encanador", hint: "Conserta tubulações de água" },
+            { word: "pedreiro", hint: "Constrói casas e edifícios" },
+            { word: "engenheiro", hint: "Planeja construções e projetos" },
+
+            // Difíceis (50 palavras)
+            { word: "inconstitucional", hint: "Algo que vai contra a constituição" },
+            { word: "otorrinolaringologista", hint: "Médico especializado em ouvido, nariz e garganta" },
+            { word: "pneumoultramicroscopico", hint: "Relativo a uma doença pulmonar rara" },
+            { word: "anticonstitucionalmente", hint: "De forma contrária à constituição" },
+            { word: "desoxirribonucleico", hint: "Relativo ao DNA" },
+            { word: "espectrofotometria", hint: "Técnica de análise de luz" },
+            { word: "hipopotomonstrosesquipedaliofobia", hint: "Medo de palavras longas" },
+            { word: "electroencefalograma", hint: "Exame que mede atividade cerebral" },
+            { word: "paralelepipedo", hint: "Forma geométrica com seis faces" },
+            { word: "idiossincrasia", hint: "Característica peculiar de alguém" },
+            { word: "anacronismo", hint: "Algo fora de seu tempo histórico" },
+            { word: "procrastinacao", hint: "Ato de adiar tarefas" },
+            { word: "efervescencia", hint: "Estado de algo que borbulha" },
+            { word: "epistemologia", hint: "Estudo da origem do conhecimento" },
+            { word: "hermeneutica", hint: "Arte de interpretar textos" },
+            { word: "metamorfose", hint: "Transformação completa de algo" },
+            { word: "onomatopeia", hint: "Palavra que imita um som" },
+            { word: "paralelogramo", hint: "Quadrilátero com lados opostos paralelos" },
+            { word: "quixotesco", hint: "Idealista e sonhador, como Dom Quixote" },
+            { word: "ubiquidade", hint: "Capacidade de estar em vários lugares ao mesmo tempo" },
+            { word: "verossimilhanca", hint: "Aparência de verdade" },
+            { word: "xilografia", hint: "Técnica de impressão com madeira" },
+            { word: "zeitgeist", hint: "Espírito de uma era" },
+            { word: "altruismo", hint: "Atitude de se preocupar com os outros" },
+            { word: "bucolico", hint: "Relativo à vida no campo" },
+            { word: "catarse", hint: "Purificação emocional" },
+            { word: "diletantismo", hint: "Interesse superficial por algo" },
+            { word: "ebulicao", hint: "Ponto em que um líquido ferve" },
+            { word: "fenomenologia", hint: "Estudo dos fenômenos" },
+            { word: "gregario", hint: "Que vive em grupo" },
+            { word: "hegemonia", hint: "Domínio de um grupo sobre outros" },
+            { word: "inconsequencia", hint: "Falta de responsabilidade" },
+            { word: "jactancia", hint: "Atitude de se vangloriar" },
+            { word: "kafkiano", hint: "Algo absurdo e opressivo, como nas obras de Kafka" },
+            { word: "labirintico", hint: "Complexo e confuso como um labirinto" },
+            { word: "misantropia", hint: "Aversão à humanidade" },
+            { word: "nefelibata", hint: "Pessoa que vive nas nuvens, sonhadora" },
+            { word: "obnubilacao", hint: "Estado de confusão mental" },
+            { word: "peripatetico", hint: "Relativo a caminhar enquanto se ensina" },
+            { word: "quimerico", hint: "Algo fantástico e irreal" },
+            { word: "recalcitrante", hint: "Que resiste à autoridade" },
+            { word: "saudosismo", hint: "Nostalgia pelo passado" },
+            { word: "tautologia", hint: "Repetição desnecessária de ideias" },
+            { word: "ultrajante", hint: "Que causa indignação" },
+            { word: "vaticinio", hint: "Predição ou profecia" },
+            { word: "xenofobia", hint: "Aversão a estrangeiros" },
+            { word: "yuppie", hint: "Jovem profissional urbano ambicioso" },
+            { word: "ziguezague", hint: "Movimento em forma de ziguezague" },
+            { word: "apoteose", hint: "Momento de glória máxima" },
+            { word: "beligerante", hint: "Que está em guerra ou conflito" },
+            { word: "concupiscencia", hint: "Desejo intenso, geralmente carnal" }
+        ];
+
+        let currentWord = '';
+        let currentHint = '';
+        let guessedLetters = [];
+        let wrongGuesses = 0;
+        const maxGuesses = 6;
+        const canvas = document.getElementById('hangmanCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Função para remover acentos
+        function removeAccents(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        // Inicializar modal de início
+        document.getElementById('startModal').style.display = 'flex';
+
+        // Sidebar e eventos
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            // Resetar o tabuleiro imediatamente
+            document.getElementById('word-display').textContent = '';
+            document.getElementById('hint').textContent = '';
+            guessedLetters = [];
+            wrongGuesses = 0;
+            clearCanvas();
+            drawHangmanBase();
+            createKeyboard();
+            closeModal('winModal');
+            closeModal('loseModal');
+            openModal('startModal');
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            // Escolher uma palavra aleatória
+            const randomIndex = Math.floor(Math.random() * words.length);
+            currentWord = words[randomIndex].word.toUpperCase();
+            currentHint = words[randomIndex].hint;
+            guessedLetters = [];
+            wrongGuesses = 0;
+            clearCanvas();
+            drawHangmanBase();
+            createKeyboard();
+            updateWordDisplay();
+            document.getElementById('hint').textContent = `Dica: ${currentHint}`;
+        }
+
+        function updateWordDisplay() {
+            const display = currentWord
+                .split('')
+                .map(letter => (guessedLetters.some(g => removeAccents(g) === removeAccents(letter)) ? letter : '_'))
+                .join(' ');
+            document.getElementById('word-display').textContent = display;
+            if (!display.includes('_')) {
+                openModal('winModal');
+            }
+        }
+
+        function createKeyboard() {
+            const keyboard = document.getElementById('keyboard');
+            keyboard.innerHTML = '';
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            letters.forEach(letter => {
+                const key = document.createElement('div');
+                key.classList.add('key');
+                key.textContent = letter;
+                key.addEventListener('click', () => guessLetter(letter));
+                keyboard.appendChild(key);
+            });
+        }
+
+        function guessLetter(letter) {
+            if (guessedLetters.includes(letter) || wrongGuesses >= maxGuesses) return;
+
+            guessedLetters.push(letter);
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(key => {
+                if (key.textContent === letter) {
+                    key.classList.add('disabled');
+                }
+            });
+
+            const normalizedWord = removeAccents(currentWord);
+            if (normalizedWord.includes(removeAccents(letter))) {
+                updateWordDisplay();
+            } else {
+                wrongGuesses++;
+                drawHangmanPart();
+                if (wrongGuesses === maxGuesses) {
+                    document.getElementById('correctWord').textContent = currentWord;
+                    openModal('loseModal');
+                }
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+        }
+
+        function drawHangmanBase() {
+            const scale = canvas.width <= 120 ? 0.8 : 1;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            // Desenhar a base da forca (fixa, não muda com erros)
+            ctx.beginPath();
+            ctx.moveTo(20 * scale, 130 * scale);
+            ctx.lineTo(130 * scale, 130 * scale);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(75 * scale, 130 * scale);
+            ctx.lineTo(75 * scale, 20 * scale);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(75 * scale, 20 * scale);
+            ctx.lineTo(120 * scale, 20 * scale);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(120 * scale, 20 * scale);
+            ctx.lineTo(120 * scale, 40 * scale);
+            ctx.stroke();
+        }
+
+        function drawHangmanPart() {
+            const scale = canvas.width <= 120 ? 0.8 : 1;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            if (wrongGuesses >= 1) { // Cabeça
+                ctx.beginPath();
+                ctx.arc(120 * scale, 60 * scale, 20 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            if (wrongGuesses >= 2) { // Tronco
+                ctx.beginPath();
+                ctx.moveTo(120 * scale, 80 * scale);
+                ctx.lineTo(120 * scale, 110 * scale);
+                ctx.stroke();
+            }
+            if (wrongGuesses >= 3) { // Braço esquerdo
+                ctx.beginPath();
+                ctx.moveTo(120 * scale, 90 * scale);
+                ctx.lineTo(100 * scale, 100 * scale);
+                ctx.stroke();
+            }
+            if (wrongGuesses >= 4) { // Braço direito
+                ctx.beginPath();
+                ctx.moveTo(120 * scale, 90 * scale);
+                ctx.lineTo(140 * scale, 100 * scale);
+                ctx.stroke();
+            }
+            if (wrongGuesses >= 5) { // Perna esquerda
+                ctx.beginPath();
+                ctx.moveTo(120 * scale, 110 * scale);
+                ctx.lineTo(100 * scale, 130 * scale);
+                ctx.stroke();
+            }
+            if (wrongGuesses >= 6) { // Perna direita
+                ctx.beginPath();
+                ctx.moveTo(120 * scale, 110 * scale);
+                ctx.lineTo(140 * scale, 130 * scale);
+                ctx.stroke();
+            }
+        }
+    </script>
+</body>
+</html>

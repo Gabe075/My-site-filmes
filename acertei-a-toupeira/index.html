@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acerte a Toupeira</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-in;
+            max-width: 600px;
+            width: 90%;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px; /* Reduzido para dar espaço ao recorde */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .game-info-container {
+            display: flex;
+            flex-direction: column; /* Organiza os itens em coluna */
+            align-items: center; /* Centraliza os itens da coluna */
+            margin-bottom: 15px;
+        }
+        .high-score-display {
+            font-size: 1em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            font-weight: 500;
+        }
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%; /* Faz o game-info ocupar a largura */
+            max-width: 300px; /* Limita a largura do game-info */
+            font-size: 1.3em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px auto;
+            width: 100%;
+            max-width: 330px;
+            aspect-ratio: 1 / 1;
+        }
+        .hole {
+            background-color: #5a3a22;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            position: relative;
+            overflow: hidden;
+            border: 4px solid #442c1a;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        .hole:hover:not(.active) { /* Não aplicar hover se a toupeira estiver ativa para não interferir */
+            background-color: #6b4f3a;
+        }
+        .hole:active:not(.active) { /* Efeito de clique no buraco vazio */
+            transform: scale(0.95);
+        }
+        .mole {
+            width: 70%;
+            height: 70%;
+            /* background-color: #8B4513; Removido pois o emoji será o visual principal */
+            font-size: 3.5em; /* Tamanho do emoji da toupeira */
+            line-height: 1; /* Ajuste para centralizar melhor o emoji */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -100%;
+            transition: bottom 0.2s ease-out;
+            pointer-events: none;
+            color: #000; /* Cor do emoji, se necessário */
+        }
+        .hole.active .mole {
+            bottom: 5%;
+        }
+        .hole.hit .mole { /* Efeito visual ao acertar a toupeira */
+            animation: moleHit 0.3s ease-out;
+        }
+        @keyframes moleHit {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.8) rotate(-15deg); }
+            100% { transform: scale(1); }
+        }
+
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2000;
+            color: #fff;
+            transition: transform 0.3s;
+        }
+        .hamburger:hover {
+            transform: rotate(90deg);
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: #2c3e50;
+            color: #fff;
+            transition: left 0.3s ease-in-out;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            padding: 15px;
+            text-decoration: none;
+            font-size: 1.1em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover {
+            background: #34495e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transform: scale(0.5);
+            animation: popIn 0.5s ease-out forwards;
+            color: #fff;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .modal-content p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .modal-content .final-score-text { /* Estilo específico para o texto do score final */
+             margin-bottom: 10px;
+        }
+        .modal-content .new-highscore-text { /* Estilo para a mensagem de novo recorde */
+            font-size: 1.1em;
+            color: #facc15; /* Amarelo para destaque */
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .modal-content button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        .close:hover {
+            transform: rotate(90deg);
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 15px;
+            }
+            .high-score-display {
+                font-size: 0.9em;
+                margin-bottom: 8px;
+            }
+            .game-info {
+                font-size: 1.1em;
+            }
+            #game-board {
+                gap: 10px;
+                padding: 10px;
+                max-width: 280px;
+            }
+             .mole {
+                font-size: 3em; /* Ajuste do emoji para telas menores */
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-content button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger">☰</div>
+    <div class="sidebar" id="sidebar">
+        <a onclick="resetAndShowStartModal()">🔄 Novo Jogo</a>
+    </div>
+
+    <div class="container">
+        <h1>Acerte a Toupeira</h1>
+        <div class="game-info-container">
+            <div class="high-score-display">Recorde: <span id="high-score">0</span></div>
+            <div class="game-info">
+                <div>Pontuação: <span id="score">0</span></div>
+                <div>Tempo: <span id="time-left">30</span>s</div>
+            </div>
+        </div>
+        <div id="game-board">
+            </div>
+    </div>
+
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('startModal')">×</span>
+            <h2>Acerte a Toupeira!</h2>
+            <p>Clique nas toupeiras 🐹 antes que elas desapareçam. Pronto?</p>
+            <button onclick="startGame()">Iniciar</button>
+        </div>
+    </div>
+    <div class="modal" id="endModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('endModal'); resetAndShowStartModal();">×</span>
+            <h2>Fim de Jogo!</h2>
+            <p class="final-score-text">Sua pontuação final foi: <span id="final-score">0</span></p>
+            <p id="new-highscore-message" class="new-highscore-text" style="display: none;">🎉 Novo Recorde! 🎉</p>
+            <button onclick="resetAndShowStartModal()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        const gameBoard = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const timeLeftDisplay = document.getElementById('time-left');
+        const highScoreDisplay = document.getElementById('high-score'); // Elemento para mostrar o recorde
+        const startModal = document.getElementById('startModal');
+        const endModal = document.getElementById('endModal');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const newHighscoreMessage = document.getElementById('new-highscore-message');
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+
+        const gridSize = 3 * 3;
+        let holes = [];
+        let score = 0;
+        let timeLeft = 30; // Tempo inicial do jogo
+        let moleInterval;
+        let timerInterval;
+        let gameActive = false;
+        let currentHighScore = 0;
+
+        const MOLE_EMOJI = '🐹'; // Emoji da toupeira
+
+        // --- Funções do Menu Lateral e Modal (Reutilizadas) ---
+        hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('#sidebar') && !event.target.closest('.hamburger') && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            sidebar.classList.remove('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function resetAndShowStartModal() {
+            closeModal('endModal');
+            resetGameValues();
+            loadHighScore(); // Carrega o recorde ao reiniciar
+            createGameBoard();
+            openModal('startModal');
+        }
+
+        function resetGameValues() {
+            score = 0;
+            timeLeft = 30; // Reseta para o tempo inicial
+            gameActive = false;
+            scoreDisplay.textContent = score;
+            timeLeftDisplay.textContent = timeLeft;
+            newHighscoreMessage.style.display = 'none'; // Esconde a mensagem de novo recorde
+            if (moleInterval) clearInterval(moleInterval);
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        // --- Funções de Recorde (High Score) ---
+        function loadHighScore() {
+            const savedHighScore = localStorage.getItem('moleHighScore');
+            if (savedHighScore) {
+                currentHighScore = parseInt(savedHighScore, 10);
+            } else {
+                currentHighScore = 0;
+            }
+            highScoreDisplay.textContent = currentHighScore;
+        }
+
+        function saveHighScore() {
+            localStorage.setItem('moleHighScore', currentHighScore.toString());
+        }
+
+        function updateHighScore() {
+            if (score > currentHighScore) {
+                currentHighScore = score;
+                saveHighScore();
+                highScoreDisplay.textContent = currentHighScore;
+                newHighscoreMessage.style.display = 'block'; // Mostra mensagem de novo recorde
+                return true; // Indica que um novo recorde foi estabelecido
+            }
+            newHighscoreMessage.style.display = 'none';
+            return false;
+        }
+
+
+        // --- Lógica do Jogo "Acerte a Toupeira" ---
+        function createGameBoard() {
+            gameBoard.innerHTML = '';
+            holes = [];
+            for (let i = 0; i < gridSize; i++) {
+                const hole = document.createElement('div');
+                hole.classList.add('hole');
+                hole.dataset.index = i;
+
+                const mole = document.createElement('div');
+                mole.classList.add('mole');
+                mole.textContent = MOLE_EMOJI; // Adiciona o emoji aqui
+                hole.appendChild(mole);
+
+                hole.addEventListener('click', handleHoleClick);
+                hole.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (gameActive) {
+                         handleHoleClick(e);
+                    }
+                });
+
+                gameBoard.appendChild(hole);
+                holes.push(hole);
+            }
+        }
+
+        function handleHoleClick(event) {
+            if (!gameActive) return;
+
+            const clickedHole = event.currentTarget;
+
+            if (clickedHole.classList.contains('active')) {
+                score++;
+                scoreDisplay.textContent = score;
+                clickedHole.classList.remove('active');
+                clickedHole.classList.add('hit'); // Adiciona classe para animação de acerto
+                setTimeout(() => { // Remove a classe de acerto após a animação
+                    clickedHole.classList.remove('hit');
+                }, 300);
+            }
+        }
+
+        function showRandomMole() {
+            if (!gameActive) return;
+
+            holes.forEach(hole => hole.classList.remove('active'));
+
+            const randomIndex = Math.floor(Math.random() * holes.length);
+            const randomHole = holes[randomIndex];
+            if (randomHole) { // Verifica se randomHole existe
+                randomHole.classList.add('active');
+
+                setTimeout(() => {
+                    if (gameActive && randomHole) {
+                        randomHole.classList.remove('active');
+                    }
+                }, 900 + Math.random() * 400 - 200); // Toupeira fica visível entre 0.7s e 1.1s
+            }
+        }
+
+        function startGame() {
+            closeModal('startModal');
+            resetGameValues();
+            loadHighScore(); // Carrega o recorde antes de iniciar o jogo
+            gameActive = true;
+
+            createGameBoard();
+
+            moleInterval = setInterval(showRandomMole, 1000 - (currentHighScore > 50 ? 200 : currentHighScore * 2) ); // Toupeiras aparecem mais rápido com recorde maior
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timeLeftDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(moleInterval);
+            clearInterval(timerInterval);
+            finalScoreDisplay.textContent = score;
+            updateHighScore(); // Verifica e atualiza o recorde
+            openModal('endModal');
+            holes.forEach(hole => hole.classList.remove('active'));
+        }
+
+        // Inicialização
+        resetAndShowStartModal();
+
+    </script>
+</body>
+</html>
+
